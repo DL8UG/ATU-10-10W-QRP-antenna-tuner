@@ -2,7 +2,7 @@
 
 Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
 FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below.
-The original sources are left unchanged. Status: 2026-09-24, branch `xc8-port`. **Not yet tested on the device.**
+The original sources are left unchanged. Status: 2026-09-24. **Tested on the device by DL8UG.**
 
 ## Acknowledgements
 Many thanks to David Fainitski, N7DDC, the original developer of the ATU-10, for his work on
@@ -15,6 +15,14 @@ compiler instead of mikroC) and improving it.
 Programming was assisted by Claude Code (Anthropic).
 
 — DL8UG
+
+## Feedback wanted
+Feedback from the community is very welcome, especially test reports from other tuners,
+antennas and bands, and readings that differ from FW 1.6 (power, SWR, tuning result, display).
+Please open an issue at https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/issues
+or post in the ATU100 group at https://groups.io/g/ATU100.
+Useful details: band, rig and power, antenna and transformer, SWR before/after, and the Cells
+settings if they were changed.
 
 Commits (each can be reverted individually):
 1. `1ff0658` pure port, behaves like N7DDC 1.6
