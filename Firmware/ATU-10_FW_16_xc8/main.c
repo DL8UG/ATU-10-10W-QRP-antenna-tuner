@@ -21,6 +21,10 @@ int PWR, SWR, SWR_ind = 0, SWR_fixed_old = 100, PWR_fixed_old = 9999, rldl;
 char ind = 0, cap = 0, SW = 0;
 __bit Overflow, gre;
 volatile __bit B_short, B_long, B_xlong, E_short, E_long;
+// Bypass: short press toggles, the tuned setting is kept to switch back
+__bit Bypass;
+char byp_ind, byp_cap, byp_SW;
+int byp_swr_old;
 
 // depending on Cells
 unsigned long Disp_time, Off_time;
@@ -34,7 +38,7 @@ const char Cells[10] = {
    0x07,   // 3) relay delay time in ms
    0x10,   // 4) min power to start tuning in tenths of a Watt, must not be 0
    0x15,   // 5) max power to start tuning in Watts
-   0x13,   // 6) delta SWR to auto start tuning in tenths (13 = SWR 1.3)
+   0x13,   // 6) SWR change that starts auto tuning, in tenths above 1.0 (13 = change of 0.3)
    0x01,   // 7) auto mode: 1 = on, 0 = off
    0x04,   // 8) calibration coefficient for 1 W (4 for BAT41 diodes)
    0x14,   // 9) calibration coefficient for 10 W (14 for BAT41 diodes)
@@ -141,7 +145,7 @@ void main(void) {
       // External interface
       if(E_short){
          if(OLED_PWD==0) oled_start();
-         Btn_short();
+         Ext_short();
       }
       if(E_long){
          if(OLED_PWD==0) { Ext_long(); oled_start(); }
@@ -166,9 +170,8 @@ void oled_start(){
    }
    oled_wr_str(0, 0, "PWR     W", 9);
    oled_bat();
-   oled_wr_str(2, 0, "SWR      ", 9);
    oled_wr_str(0, 42, "=", 1);
-   oled_wr_str(2, 42, "=", 1);
+   swr_label(9);
    Voltage_old = 9999;
    SWR_fixed_old = 100;
    PWR_fixed_old = 9999;
@@ -232,15 +235,14 @@ void watch_swr(void){
          oled_wr_str(2, 0, "         ", 9);
          Delay_ms(500);
       }
-      oled_wr_str(2, 0, "SWR      ", 9);
-      oled_wr_str(2, 42, "=", 1);
+      swr_label(9);
       draw_swr(SWR_fixed);
       Delay_ms(500);
       Overflow = 0;
    }
    //
 
-   else if(Auto && PWR_fixed>=min_for_start && PWR_fixed<max_for_start && SWR_fixed>120) {
+   else if(Auto && !Bypass && PWR_fixed>=min_for_start && PWR_fixed<max_for_start && SWR_fixed>120) {
        if(  (SWR_fixed-SWR_fixed_old)>delta || (SWR_fixed_old-SWR_fixed)>delta || SWR_fixed>(999-delta) ) {
            Btn_long();
            return;
@@ -346,11 +348,11 @@ void Btn_long(){
    Green = 0;
    oled_wr_str(2, 0, "TUNE     ", 9);
    Key_out = 0;
+   Bypass = 0;
    tune();
    SWR_ind = SWR;
    SWR_fixed_old = SWR;
-   oled_wr_str(2, 0, "SWR ", 4);
-   oled_wr_str(2, 42, "=", 1);
+   swr_label(4);
    draw_swr(SWR_ind);
    Key_out = 1;
    Green = 1;
@@ -366,6 +368,7 @@ void Ext_long(){
    Green = 0;
    OLED_PWD = 1;
    Key_out = 0;   //
+   Bypass = 0;
    get_swr();     //
    if(SWR>99){
       tune();
@@ -377,15 +380,10 @@ void Ext_long(){
    return;
 }
 //
-void Btn_short(){
+static void short_action(char toggle){
    Green = 0;
-   atu_reset();
-   oled_wr_str(2, 0, "RESET    ", 9);
-   Delay_ms(600);
-   oled_wr_str(2, 0, "SWR  ", 5);
-   oled_wr_str(2, 42, "=", 1);
-   oled_wr_str(2, 60, "0.00", 4);
-   SWR_fixed_old = 0;
+   if(Bypass && toggle) bypass_off();
+   else bypass_on();
    Delay_ms(300);
    Green = 1;
    B_short = 0;
@@ -393,6 +391,56 @@ void Btn_short(){
    btn_1_cnt = 0;
    volt_cnt = Tick;
    watch_cnt = Tick;
+   return;
+}
+//
+void Btn_short(){   // button: toggle bypass
+   short_action(1);
+   return;
+}
+//
+void Ext_short(){   // external interface (reset request): bypass on only
+   short_action(0);
+   return;
+}
+//
+void bypass_on(void){
+   if(!Bypass){      // keep the tuned setting to switch back to
+      byp_ind = ind;
+      byp_cap = cap;
+      byp_SW = SW;
+      byp_swr_old = SWR_fixed_old;
+   }
+   Bypass = 1;
+   ind = 0;
+   cap = 0;
+   SW = 0;
+   Relay_set(ind, cap, SW);
+   oled_wr_str(2, 0, "BYPASS   ", 9);
+   Delay_ms(600);
+   swr_label(5);
+   SWR_ind = 0;
+   oled_wr_str(2, 60, "0.00", 4);
+   return;
+}
+//
+void bypass_off(void){
+   Bypass = 0;
+   ind = byp_ind;
+   cap = byp_cap;
+   SW = byp_SW;
+   Relay_set(ind, cap, SW);
+   SWR_fixed_old = byp_swr_old;   // no immediate auto tune
+   swr_label(5);
+   SWR_ind = 0;
+   oled_wr_str(2, 60, "0.00", 4);
+   return;
+}
+//
+void swr_label(char len){   // label of the SWR line, BYP while in bypass
+   if(Bypass) oled_wr_str(2, 0, "BYP      ", len);
+   else oled_wr_str(2, 0, "SWR      ", len);
+   oled_wr_str(2, 42, "=", 1);
    return;
 }
 //

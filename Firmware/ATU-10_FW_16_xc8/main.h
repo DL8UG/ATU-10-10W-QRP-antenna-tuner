@@ -2,6 +2,10 @@
 void pic_init(void);
 void Btn_long(void);
 void Btn_short(void);
+void Ext_short(void);
+void bypass_on(void);
+void bypass_off(void);
+void swr_label(char);
 void Btn_xlong(void);
 void check_reset_flags(void);
 void Voltage_show(void);

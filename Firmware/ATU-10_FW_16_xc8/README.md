@@ -9,7 +9,8 @@ Commits (each can be reverted individually):
 3. `73901f0` bug fixes: `sqrt_n` accuracy, relay state after `coarse_tune`
 4. `d11dd69` tune measurement averages 8 F/R pairs
 5. `5c304a1` tune algorithm: RFL metric, repeated fine search, coarse search up to 64
-6. coarse search with tolerance, antenna test series in the simulator (`make simants`)
+6. `980364b` coarse search with tolerance, antenna test series in the simulator (`make simants`)
+7. bypass by short press
 
 ## Building
 ```
@@ -36,6 +37,16 @@ The script also checks the config words against `ATU-10.cfg`, but only the bits 
 `normalize_hex.py --check FILE` checks the format of a file. The original FW 1.5 hex passes this check.
 
 Fallback: flash `../ATU-10_FW_15/ATU-10_FW_15.hex` the same way. There is no FW 1.6 hex in the repo; the groups.io group ATU100 may have one.
+
+## Operation
+- **Short press**: bypass on or off.
+  - On: the relays go to L=0/C=0, the display briefly shows "BYPASS", then "BYP = x.xx". The tuned setting is remembered, auto mode is paused.
+  - Off: the remembered setting is restored without an immediate auto-tune.
+  - The original did a "RESET" to L=0/C=1 here (22 pF stayed in parallel), and auto mode then started again right away.
+- **Long press**: tune. Ends an active bypass.
+- **Very long press** (approx. 2.5 s): power off.
+- **Short press while tuning**: aborts the tune and switches to bypass.
+- **External interface** (Icom): "Reset" only switches to bypass and never back, "Tune" tunes as before.
 
 ## Settings (Cells)
 The values are stored BCD-coded and commented in the `Cells[]` array in `main.c`. They are changed in the code, no longer in the hex.
