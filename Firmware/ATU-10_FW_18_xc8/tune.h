@@ -18,7 +18,6 @@ extern volatile __bit B_short, B_xlong;
 void Relay_set(char, char, char);
 void get_pwr(void);
 void get_pwr_avg(char n);          // n averaged F/R pairs
-void Btn_short(void);
 void draw_power(unsigned int);
 
 #define TUNE_GOOD_SWR 120          // stop tuning at SWR 1.20 or better
@@ -28,6 +27,12 @@ void draw_power(unsigned int);
 #define COARSE_TOL 25              // % a coarse step may be worse and the search still goes on,
 #define COARSE_TOL_MAX 200         //   but at most this much RFL (2 % of Pr/Pf)
 #define NOT_TRIED 32767
+// A button press cancels the tuning: the search loops stop right away and
+// the main loop handles the press afterwards (bypass or power off), the
+// flags stay set until then. Calling Btn_short() from get_swr() used to
+// switch the relays to bypass while the search went on and set them again,
+// so the display showed BYP with tuned relays.
+#define TUNE_ABORT (B_short || B_xlong)
 
 void atu_reset(void);
 void get_swr(void);

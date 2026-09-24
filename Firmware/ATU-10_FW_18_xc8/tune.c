@@ -30,14 +30,9 @@ void get_swr(){
    // ADC limit (~20 W) at bad settings on low bands even with 5 W
    while(PWR<min_for_start || PWR_net>max_for_start){   // waiting for good power
       //
-      if(B_short){
-         Btn_short();
+      if(TUNE_ABORT){
          SWR = 0;
-         break;
-      }
-      if(B_xlong){
-         //Btn_xlong();
-         SWR = 0;
+         RFL = 10000;
          break;
       }
       //
@@ -176,7 +171,7 @@ void coarse_ind_cap(void){
    ind_mem = 0;
    get_swr();
    RFL_mem = RFL;
-   for(ind=1; ind<=COARSE_MAX; ind*=2){
+   for(ind=1; ind<=COARSE_MAX && !TUNE_ABORT; ind*=2){
       Relay_set(ind, ind, SW);
       get_swr();
       if(RFL <= RFL_mem + coarse_tol(RFL_mem)){
@@ -198,7 +193,7 @@ void coarse_cap(void){
    cap_mem = 0;
    get_swr();
    RFL_mem = RFL;
-   for(cap=1; cap<=COARSE_MAX; cap*=2){
+   for(cap=1; cap<=COARSE_MAX && !TUNE_ABORT; cap*=2){
       Relay_set(ind, cap, SW);
       get_swr();
       if(RFL <= RFL_mem + coarse_tol(RFL_mem)){
@@ -219,7 +214,7 @@ void coarse_ind(void){
    ind_mem = 0;
    get_swr();
    RFL_mem = RFL;
-   for(ind=1; ind<=COARSE_MAX; ind*=2){
+   for(ind=1; ind<=COARSE_MAX && !TUNE_ABORT; ind*=2){
       Relay_set(ind, cap, SW);
       get_swr();
       if(RFL <= RFL_mem + coarse_tol(RFL_mem)){
@@ -240,7 +235,7 @@ void sharp_tune(void){
    // about 10 %, then with single steps
    char pass, cap_start, ind_start;
    sharp_fine = 0;
-   for(pass=0; pass<SHARP_PASSES; pass++){
+   for(pass=0; pass<SHARP_PASSES && !TUNE_ABORT; pass++){
       cap_start = cap;
       ind_start = ind;
       if(cap>=ind){
@@ -274,7 +269,7 @@ void sharp_cap(void){
    if(RFL<=RFL_mem){
       RFL_mem = RFL;
       cap_mem = cap;
-      for(cap+=step; cap<=(127-step); cap+=step){
+      for(cap+=step; cap<=(127-step) && !TUNE_ABORT; cap+=step){
          Relay_set(ind, cap, SW);
          get_swr();
          if(RFL<=RFL_mem){
@@ -289,7 +284,7 @@ void sharp_cap(void){
    }
    else{
       RFL_mem = RFL;
-      for(cap-=step; cap>=step; cap-=step){
+      for(cap-=step; cap>=step && !TUNE_ABORT; cap-=step){
          Relay_set(ind, cap, SW);
          get_swr();
          if(RFL<=RFL_mem){
@@ -321,7 +316,7 @@ void sharp_ind(void){
    if(RFL<=RFL_mem){
       RFL_mem = RFL;
       ind_mem = ind;
-      for(ind+=step; ind<=(127-step); ind+=step){
+      for(ind+=step; ind<=(127-step) && !TUNE_ABORT; ind+=step){
          Relay_set(ind, cap, SW);
          get_swr();
          if(RFL<=RFL_mem){
@@ -336,7 +331,7 @@ void sharp_ind(void){
    }
    else{
       RFL_mem = RFL;
-      for(ind-=step; ind>=step; ind-=step){
+      for(ind-=step; ind>=step && !TUNE_ABORT; ind-=step){
          Relay_set(ind, cap, SW);
          get_swr();
          if(RFL<=RFL_mem){

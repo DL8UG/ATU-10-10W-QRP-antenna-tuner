@@ -47,7 +47,7 @@ make clean
   `~/.local/share/microchip/packs/PIC16F1xxxx_DFP/1.32.471`
   (source: `https://packs.download.microchip.com/Microchip.PIC16F1xxxx_DFP.1.32.471.atpack`, unpacked).
   The `Makefile` finds it automatically, otherwise use `make DFP=/path`.
-- Result: 11,408 of 32,768 program words (pure port: 10,251, mikroC: 9,074). Hardware stack according to the XC8 call graph: `main` 14 levels, 15 with the interrupt (limit 16). That is tight, so check after every change: `grep "Estimated maximum stack depth" build/ATU-10.lst`.
+- Result: 11,408 of 32,768 program words (pure port: 10,251, mikroC: 9,074). Hardware stack according to the XC8 call graph: `main` 12 levels, 13 with the interrupt (limit 16; FW 1.7: 14/15). Check it after every change: `grep "Estimated maximum stack depth" build/ATU-10.lst`.
 - Listing and map with stack information: `build/ATU-10.lst` and `build/ATU-10.map`
 
 ## Flashing
@@ -124,6 +124,7 @@ Code: `swr.c` (calculation from the detector voltages) and `tune.c` (search). Pa
 - **Coarse search**: it also tries the largest relay (64), before only up to 32.
 - **Tolerance in the coarse search**: the search continues as long as a step is at most 25 % worse, capped at 200 RFL (2 % of Pr/Pf). This way it gets over small bumps into the valley. The original achieved that as a side effect of the `SWR/10` quantization. Without the cap the search runs away at high SWR.
 - **Abort showing ~20 W (80 m, random wire)**: the wait loop in `get_swr` waits as long as the power is outside cells 4…5. The upper limit checked the forward power Pf. But a QRP PA is not a 50 Ω source: at badly mismatched intermediate settings (on 80 m with large L/C) the reflection is reflected again at the TRX, and Pf rises up to the ADC limit (~19–20 W depending on battery voltage), even though the TRX only delivers 5 W. The loop then hung for ~20 s, showed the peak power and aborted tuning via timeout (`SWR = 0`). This also happened with the original, but the coarse search up to 64 made it much more frequent. The upper limit now checks `PWR_net` = Pf − Pr, i.e. the power the transmitter actually delivers. That is what matters for protecting the relays. The lower limit (carrier present) and the display stay with Pf.
+- **Cancelling a tune with a short press** (FW 1.8): the original switched the relays to bypass from inside the measurement loop, but the search then went on and set them again, so the display showed BYP with tuned relays. Now the measurement and all search loops stop as soon as the button flag is set (`TUNE_ABORT`), and the main loop switches to bypass afterwards. Together with a leaner `pwr_wake()` this also frees 2 levels of the hardware stack.
 - **Dropped**: remembering the best measured setting and jumping back to it at the end. It made no difference in the simulator: in the worse cases the search never measures the good setting in the first place.
 
 ### Simulator

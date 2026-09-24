@@ -145,7 +145,7 @@ void get_pwr_avg(char n) {
    swr_calc((float)fs / n, (float)rs / n);
 }
 
-void Btn_short(void) {}
+void Btn_short(void) {}   // only the frozen original (tools/sim/orig) calls it
 void draw_power(unsigned int p) {
    hangs++;
    if(p > shown_max) shown_max = p;

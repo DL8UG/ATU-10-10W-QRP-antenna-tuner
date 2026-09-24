@@ -661,11 +661,12 @@ int get_forward(void){
    return v;
 }
 //
-static void pwr_wake(void){   // power detected: keep the display on
-   if(PWR>0){
-      if(OLED_PWD) keep_awake();
-      else oled_start();
-   }
+// Power detected: keep the display on. Switching a dark display on is left
+// to watch_swr(): an oled_start() from here would sit at the bottom of the
+// tune call chain and cost 5 levels of the 16 level hardware stack, and the
+// display is always on while tuning anyway.
+static void pwr_wake(void){
+   if(PWR>0 && OLED_PWD) keep_awake();
    return;
 }
 //
