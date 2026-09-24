@@ -52,6 +52,19 @@ Fallback: flash `../ATU-10_FW_15/ATU-10_FW_15.hex` the same way. There is no FW 
 The values are stored BCD-coded and commented in the `Cells[]` array in `main.c`. They are changed in the code, no longer in the hex.
 The array no longer has a fixed address (in the original it was `absolute 0x7770`).
 
+Explanations (traced from the code):
+- **Cell 4, minimum power** (`0x10` = 1.0 W, unit 0.1 W): from this power on, the SWR is calculated and displayed (below it "0.00"), and auto-tune triggers. Tuning only starts at power *above* the value (`PWR > min_for_start`).
+  - 0.5 W works with `0x05`, but the measurement becomes less accurate: at 0.5 W the reflected detector delivers only about 10 mV at SWR 1.2 and about 44 mV at SWR 1.5, with an ADC resolution of 1 mV.
+  - Simulator with 3 mV noise: practically unchanged for the EFHW; for the random wire the rate of SWR ≤ 1.5 drops from 71 % to 68 %. The real diodes deviate more from the calibration formula at such small voltages. So it is better to tune with 2–5 W.
+  - 0 is not allowed, otherwise any noise already counts as a carrier.
+- **Cell 6, auto-tune threshold** (`0x13`): auto-tune starts when all of these conditions hold:
+  - The SWR is above 1.2.
+  - It has changed by more than (value − 10) tenths since the last tune, i.e. by more than 0.3 for `0x13`. Alternatively an SWR above 9.69 is enough.
+  - The power is within the window of cells 4 and 5.
+  - No bypass is active.
+  
+  So the value is not an SWR limit of 1.3. After a reset or display wake-up the reference value is reset. Tuning itself ends at SWR ≤ 1.2 (`TUNE_GOOD_SWR`).
+
 ## What was changed
 - **`mikroc_compat.h/.c`**: replacement for the mikroC libraries
   - Register bits `*_bit` → `REGbits.X`: the XC8 header defines these names too, but only for assembler, hence `#undef` and redefine.
