@@ -10,8 +10,7 @@ void atu_reset(){
 //
 void get_swr(){
    unsigned int pwr_cnt = 150, tuneoff_cnt = 300;
-   unsigned int swr_1, pwr_1, PWR_max = 0;
-   char cnt;
+   unsigned int PWR_max = 0;
    PWR = 0;
    SWR = 0;
    PWR_max = 0;
@@ -29,19 +28,16 @@ void get_swr(){
          break;
       }
       //
-      swr_1 = 1000;
-      for(cnt=5; cnt>0; cnt--){
+      // Quick single measurement to see whether a carrier is there. Only then
+      // average several F/R pairs: the minimum of up to 5 single SWR values
+      // used before was noisy and too optimistic. Without carrier the loop
+      // takes as long as before, which keeps the timeout below unchanged.
+      get_pwr();
+      if(PWR>min_for_start & PWR<max_for_start)
+         get_pwr_avg(TUNE_AVG);
+      else {
+         Delay_us(500);
          get_pwr();
-         if(SWR<swr_1){
-            swr_1 = SWR ;
-            pwr_1 = PWR;
-            Delay_us(500);
-         }
-         else{
-             SWR = swr_1;
-             PWR = pwr_1;
-             break;
-         }
       }
       //
       if(PWR>min_for_start & PWR<max_for_start)

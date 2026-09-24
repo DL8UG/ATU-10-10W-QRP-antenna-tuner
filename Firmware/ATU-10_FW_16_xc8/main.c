@@ -560,9 +560,7 @@ int get_forward(void){
    return v;
 }
 //
-void get_pwr(){
-   swr_calc(get_forward(), get_reverse());
-   //
+static void pwr_wake(void){   // power detected: keep the display on
    if(PWR>0){
       if(OLED_PWD){
          disp_cnt = Disp_time;
@@ -570,7 +568,24 @@ void get_pwr(){
       }
       else oled_start();
    }
-   //
+   return;
+}
+//
+void get_pwr(){
+   swr_calc(get_forward(), get_reverse());
+   pwr_wake();
+   return;
+}
+//
+void get_pwr_avg(char n){   // forward and reverse alternately, n pairs
+   unsigned long F = 0, R = 0;
+   char i;
+   for(i=0; i<n; i++){
+      F += get_forward();
+      R += get_reverse();
+   }
+   swr_calc((float)F / n, (float)R / n);
+   pwr_wake();
    return;
 }
 //

@@ -104,6 +104,16 @@ void get_pwr(void) {
    swr_calc(f, r);
 }
 
+void get_pwr_avg(char n) {
+   long fs = 0, rs = 0;
+   for(int i = 0; i < n; i++) {
+      int f, r;
+      measure(&f, &r);
+      fs += f; rs += r;
+   }
+   swr_calc((float)fs / n, (float)rs / n);
+}
+
 void Btn_short(void) {}
 void draw_power(unsigned int p) { (void)p; }
 
