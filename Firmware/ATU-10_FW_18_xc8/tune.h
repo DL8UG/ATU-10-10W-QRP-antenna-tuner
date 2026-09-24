@@ -28,6 +28,19 @@ void draw_power(unsigned int);
 #define COARSE_TOL 25              // % a coarse step may be worse and the search still goes on,
 #define COARSE_TOL_MAX 200         //   but at most this much RFL (2 % of Pr/Pf)
 #define NOT_TRIED 32767
+// Quick retune: when the relays hold the result of an earlier tune and the
+// SWR is at most QUICK_MAX_SWR (x100), a fine search from there comes first.
+// Its result is kept if it is at most QUICK_MARGIN worse than the earlier
+// tune reached, otherwise the full search follows. QUICK_MAX_SWR 0 = off.
+#ifndef QUICK_MAX_SWR
+#define QUICK_MAX_SWR 500
+#endif
+#ifndef QUICK_MARGIN
+#define QUICK_MARGIN 20
+#endif
+extern int tune_last;              // SWR the relays were tuned to, 0 = none
+// after tune(): SWR 0 = cancelled, 999 = no match (true bypass)
+#define TUNE_RESULT (SWR>0 && SWR<999 ? SWR : 0)
 // A button press cancels the tuning: the search loops stop right away and
 // the main loop handles the press afterwards (bypass or power off), the
 // flags stay set until then. Calling Btn_short() from get_swr() used to

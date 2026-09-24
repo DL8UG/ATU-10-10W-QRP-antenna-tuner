@@ -27,7 +27,7 @@ $(TARGET).hex: build/ATU-10.hex tools/normalize_hex.py
 clean:
 	rm -rf build $(TARGET).hex
 
-.PHONY: all clean sim simcompare simants
+.PHONY: all clean sim simcompare simants simretune
 
 # ---- PC simulator of the tuning algorithm (tools/sim), built with the host gcc
 HOSTCC   = gcc
@@ -66,3 +66,20 @@ simants: sim
 	   echo "== $$a without noise"; python3 tools/sim/compare.py build/ant_orig_$$a.tsv build/ant_new_$$a.tsv $(if $(TABLE),--table); \
 	   echo "== $$a with $(NOISE) mV noise"; python3 tools/sim/compare.py build/ant_orig_noise_$$a.tsv build/ant_new_noise_$$a.tsv; \
 	done
+
+# retune after a QSY of RETUNE percent: quick retune (tune.h) against the full
+# search it replaces (same code built with QUICK_MAX_SWR=0)
+RETUNE ?= -5 -2 -1 1 2 5
+build/sim_noquick: tools/sim/sim.c swr.c tune.c $(wildcard *.h)
+	mkdir -p build
+	$(HOSTCC) $(SIMFLAGS) -DQUICK_MAX_SWR=0 -I. -o $@ tools/sim/sim.c swr.c tune.c -lm
+
+simretune: build/sim_new build/sim_noquick
+	for p in $(RETUNE); do build/sim_noquick --retune $$p; done > build/rt_full.tsv
+	for p in $(RETUNE); do build/sim_new --retune $$p; done > build/rt_quick.tsv
+	for p in $(RETUNE); do for s in $(SEEDS); do build/sim_noquick --retune $$p --noise $(NOISE) --seed $$s; done; done > build/rt_full_noise.tsv
+	for p in $(RETUNE); do for s in $(SEEDS); do build/sim_new --retune $$p --noise $(NOISE) --seed $$s; done; done > build/rt_quick_noise.tsv
+	@echo "== retune after QSY of $(RETUNE) %: full search (orig) vs quick retune (new)"
+	@python3 tools/sim/compare.py build/rt_full.tsv build/rt_quick.tsv $(if $(TABLE),--table)
+	@echo "== with $(NOISE) mV noise, seeds $(SEEDS)"
+	@python3 tools/sim/compare.py build/rt_full_noise.tsv build/rt_quick_noise.tsv

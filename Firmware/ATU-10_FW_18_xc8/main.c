@@ -128,7 +128,8 @@ void main(void) {
    // Relays and variables in step: restore the stored setting (true bypass
    // if there is none) and set the relays to it. After a brown-out the relay
    // pulses could pull the weak battery down again, so they are skipped then.
-   if(!nvm_restore()){ ind = 0; cap = 0; SW = 0; Bypass = 0; }
+   if(nvm_restore()) tune_last = TUNE_GOOD_SWR;   // SWR reached is not stored
+   else { ind = 0; cap = 0; SW = 0; Bypass = 0; }
    if(!(nPOR_bit && !nBOR_bit)) Relay_set(ind, cap, SW);
    Red = 1;
    Key_out = 1;
@@ -408,6 +409,7 @@ void Btn_long(){
    Key_out = 0;
    Bypass = 0;
    tune();
+   tune_last = TUNE_RESULT;
    nvm_save();
    SWR_ind = SWR;
    SWR_fixed_old = SWR;
@@ -430,6 +432,7 @@ void Ext_long(){
    get_swr();     //
    if(SWR>99){
       tune();
+      tune_last = TUNE_RESULT;
       nvm_save();
    }
    Key_out = 1;   //

@@ -1,6 +1,7 @@
 #include "tune.h"
 
 static char sharp_fine;   // fine search with single steps
+int tune_last;
 
 // How much worse a coarse step may be and the search still goes on: a few
 // percent let it cross small bumps on the way into the valley, the limit
@@ -11,6 +12,7 @@ static int coarse_tol(int rfl){
 }
 
 void atu_reset(){
+   tune_last = 0;
    ind = 0;
    cap = 1;
    SW = 0;
@@ -70,11 +72,25 @@ void get_swr(){
 }
 //
 void tune(void){
-   int RFL_mem;
-   char cap_mem, ind_mem;
+   int RFL_mem, RFL_quick = NOT_TRIED;
+   char cap_mem, ind_mem, cap_quick, ind_quick, SW_quick;
    //
    get_swr();
    if(SWR<=TUNE_GOOD_SWR) return;
+   // Quick retune: after a small QSY the best setting is usually close to the
+   // current one, and a fine search from here clicks the relays far less
+   // than the full search from L=0/C=0. If it does not get good enough, the
+   // full search follows and the better of both results is kept.
+   if(tune_last && (ind|cap) && SWR<=QUICK_MAX_SWR){
+      sharp_tune();
+      get_swr();
+      if(SWR<=TUNE_GOOD_SWR || SWR<=tune_last+QUICK_MARGIN || TUNE_ABORT) return;
+      RFL_quick = RFL;
+      ind_quick = ind;
+      cap_quick = cap;
+      SW_quick = SW;
+   }
+   tune_last = 0;
    subtune();
    get_swr();
    if(SWR<=TUNE_GOOD_SWR) return;
@@ -96,6 +112,13 @@ void tune(void){
    if(SWR<=TUNE_GOOD_SWR) return;
    sharp_tune();
    get_swr();
+   if(RFL_quick<RFL && !TUNE_ABORT){   // the quick retune was better
+      ind = ind_quick;
+      cap = cap_quick;
+      SW = SW_quick;
+      Relay_set(ind, cap, SW);
+      get_swr();
+   }
    if(SWR==999){   // no match found: true bypass (N7DDC: atu_reset, C = 22 pF)
       ind = 0;
       cap = 0;

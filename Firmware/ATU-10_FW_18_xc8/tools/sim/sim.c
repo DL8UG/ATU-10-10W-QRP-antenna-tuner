@@ -7,7 +7,10 @@
 // swr_reached is the true SWR of the relays as actually set, swr_best the
 // best SWR of all 2 x 128 x 128 settings (brute force).
 //
-// Usage: sim [--noise mV] [--seed n] [--rs Ohm] [--case MHz R X | --sweep MHz]
+// Usage: sim [--noise mV] [--seed n] [--rs Ohm] [--retune %] [--case MHz R X | --sweep MHz]
+//   --retune tunes each case at the band frequency first, then moves the
+//          frequency by this many percent (the load stays the same) and
+//          reports the second tune: how a retune after a QSY performs
 //   --case runs a single load and traces every relay step to stderr
 //   --rs   models the transmitter as a source with this internal resistance
 //          (5 W into 50 Ohm): at a mismatch the forward power then rises
@@ -158,15 +161,24 @@ static double complex loads[] = {
    10 - 100 * I, 30 + 80 * I, 300 + 300 * I, 2000 - 500 * I, 5 - 20 * I, 150 - 150 * I,
 };
 
+static double retune;         // % QSY after a first tune, 0 = cold start only
+
 static void run(void) {
    double best = 1;
+   atu_reset();
+   if(retune != 0) {   // tune at the band frequency first, then QSY
+      tune();
+#ifdef TUNE_RESULT      // not in the frozen original
+      tune_last = TUNE_RESULT;
+#endif
+      freq *= 1 + retune / 100;
+   }
    for(int sw = 0; sw < 2; sw++)
       for(int li = 0; li < 128; li++)
          for(int ci = 0; ci < 128; ci++) {
             double g = gamma_of(li, ci, sw);
             if(g < best) best = g;
          }
-   atu_reset();
    relay_steps = 0;
    hangs = 0;
    shown_max = 0;
@@ -184,6 +196,7 @@ int main(int argc, char **argv) {
       else if(!strcmp(argv[i], "--seed") && i + 1 < argc) seed = atoi(argv[++i]);
       else if(!strcmp(argv[i], "--rs") && i + 1 < argc) r_src = atof(argv[++i]);
       else if(!strcmp(argv[i], "--sweep") && i + 1 < argc) sweep = atof(argv[++i]);
+      else if(!strcmp(argv[i], "--retune") && i + 1 < argc) retune = atof(argv[++i]);
       else if(!strcmp(argv[i], "--case") && i + 3 < argc) {
          bands[0] = atof(argv[i + 1]);
          loads[0] = atof(argv[i + 2]) + atof(argv[i + 3]) * I;
@@ -191,7 +204,7 @@ int main(int argc, char **argv) {
          trace = 1;
          i += 3;
       }
-      else { fprintf(stderr, "usage: %s [--noise mV] [--seed n] [--rs Ohm] [--case MHz R X | --sweep MHz]\n", argv[0]); return 2; }
+      else { fprintf(stderr, "usage: %s [--noise mV] [--seed n] [--rs Ohm] [--retune %%] [--case MHz R X | --sweep MHz]\n", argv[0]); return 2; }
    }
    srand(seed);
    if(sweep > 0) {   // R 2..5000 Ohm logarithmic, X -3000..+3000 Ohm
