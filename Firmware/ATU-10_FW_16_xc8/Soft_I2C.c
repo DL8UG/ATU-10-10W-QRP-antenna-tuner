@@ -10,7 +10,17 @@
 #define Soft_I2C_Sda_in           PORTAbits.RA2
 #define Soft_I2C_Scl_in           PORTAbits.RA3
 //
+// Also frees a slave hanging in the middle of a byte (e.g. after RF
+// interference): clock until it releases SDA, then send a stop
 void Soft_I2C_Init(void) {
+    char i;
+    Soft_I2C_Sda = 1;
+    for(i=0; i<9 && !Soft_I2C_Sda_in; i++) {
+        Soft_I2C_Scl = 0;
+        Delay_I2C;
+        Soft_I2C_Scl = 1;
+        Delay_I2C;
+    }
     Soft_I2C_Stop();
     return;
  }
