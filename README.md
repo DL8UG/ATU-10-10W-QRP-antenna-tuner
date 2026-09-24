@@ -1,20 +1,50 @@
-> **Fork note (DL8UG):** this fork contains ports of N7DDC's FW 1.6 to Linux/XC8 with
-> tuning, bypass, display and robustness improvements:
-> [FW 1.8](Firmware/ATU-10_FW_18_xc8/README.md) (latest) and
-> [FW 1.7](Firmware/ATU-10_FW_17_xc8/README.md) (tested on the device). Many thanks to N7DDC for the original work.
-
 # ATU-10  - The Tyny QRP Automatic Antenna Tuner
 
 ### Official conversation group - https://groups.io/g/ATU100
 ### Schematic and assembly instruction by VK3PE - http://carnut.info/ATU_N7DDC/ATU-10/ATU-10_by-vk3pe_build_info/ATU-10_vk3pe_V1.2_ALL_INFO_290921.pdf
 
+## DL8UG fork: FW 1.7 and 1.8 (XC8 port)
+This fork continues N7DDC's FW 1.6: ported from mikroC to the free Microchip XC8 compiler (builds on Linux) and improved.
+Many thanks to David Fainitski, N7DDC, for the original hardware and firmware. Programming was assisted by Claude Code.
+
+| Version | Firmware | Status |
+|---|---|---|
+| FW 1.8 | [Firmware/ATU-10_FW_18_xc8](Firmware/ATU-10_FW_18_xc8/README.md), `ATU-10_FW_18_xc8.zip` | latest, not yet tested on the device |
+| FW 1.7 | [Firmware/ATU-10_FW_17_xc8](Firmware/ATU-10_FW_17_xc8/README.md), `ATU-10_FW_17_xc8.zip`, [release v1.7](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.7) | tested on the device |
+| FW 1.6 and older | `Firmware/ATU-10_FW_16` … `ATU-10_FW_10` | original N7DDC firmware (mikroC) |
+
+**Flashing** works as before: connect the tuner via USB-C and copy the hex onto its USB drive. Any older hex can be flashed back the same way.
+
+**Operation from FW 1.7 on:**
+- Short press: bypass on/off. Bypass is true bypass (L=0, C=0), and switching it off restores the last tuned setting. The original did a reset to L=0, C=1 instead.
+- Long press: tune. A short press while tuning cancels it and switches to bypass.
+- Very long press (approx. 2.5 s): power off.
+- External interface (Icom): "Reset" switches to bypass only, "Tune" tunes as before.
+- FW 1.8: the relay setting survives a reset or battery change. After an unusual restart the display shows the reason for 2 s (`LOW BATT`, `WDT RESET`, `STACK RST`).
+
+**Settings (Cells) from FW 1.7 on** are set in `Cells[]` in `main.c` and the firmware is rebuilt, there is no hex editing any more. The meaning of the cells is the same, see *Cells description* below.
+
+**Feedback** is very welcome, especially test reports with other antennas and bands: please open an [issue](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/issues) or post in the [ATU100 group](https://groups.io/g/ATU100).
+
+###### New in FW version 1.8 (DL8UG, not yet tested on the device)
+1 - Quick retune: after a QSY a fine search from the current setting comes first, which needs about 60 % fewer relay steps.
+2 - The relay setting and bypass state are kept in the EEPROM, so display and relays agree after a reset or battery change.
+3 - Watchdog and brown-out reset, the reason of a restart is shown on the display.
+4 - A short press while tuning now cancels cleanly (FW 1.6 showed bypass while the relays were tuned).
+5 - A failed tune ends in true bypass instead of leaving 22 pF in parallel.
+
+###### New in FW version 1.7 (DL8UG)
+1 - Port from mikroC to the free Microchip XC8 compiler, builds on Linux.
+2 - Fixes: SWR display accuracy (1.01 was shown as 1.03), relay state after the coarse search.
+3 - Better tuning: averaged measurement, Pr/Pf metric instead of the capped SWR, repeated fine search, coarse search up to relay 64 with tolerance.
+4 - Tuning on 80 m with a QRP rig no longer aborts showing ~20 W (the power limit checks Pf − Pr).
+5 - Short press toggles a true bypass.
+6 - Display robustness: I2C bus recovery, periodic refresh of the display settings, fixed interrupt races.
+7 - PC simulator for the tuning algorithm.
+
 ###### New in FW version 1.6
 1 - New better meassurement formula for Power and SWR calculation, compensation and calibration.  
-2 - Setting by Cells control implementation. There are 10 cells you can find opening a FW .hex file in Notepad++ program as Intel HEX file. 
-At the end by address EEE0 and EEF0 you can see them and change values. After changing any value you must to correct a checksumm for each 
-changed string. Copy the needed string into Checsumm.html and get correct checksumm. It should be green color before you can save changed .hex FW file. 
-
-[![](https://github.com/Dfinitski/ATU-10-10W-QRP-antenna-tuner/blob/main/Photos/Cells.jpg)](https://github.com/Dfinitski/ATU-10-10W-QRP-antenna-tuner/blob/main/Photos/Cells.jpg)
+2 - Setting by Cells control implementation. In FW 1.6 the cells are changed in the hex file, see [Firmware/ATU-10_FW_16](Firmware/ATU-10_FW_16/README.md); from FW 1.7 on in `main.c`.
 
 Cells description:
 1) Time to display off in minutes, 5 mins by default, 0 to always on display
@@ -23,13 +53,14 @@ Cells description:
 4) min power to start tuning in ten's parts of Watt, 10 by default (1.0 W). This value can not be 0
 5) max power to start tuning in watts, 15 by default
 6) Delta SWR to auto start tuning in ten's parts SWR, 13 by default (SWR = 1.3)
+   Note (DL8UG): in the code this is a change of the SWR by (value − 10) tenths since the last tune, i.e. 0.3 for 13, not a threshold of 1.3.
 7) Auto mode 1 for activate or 0 to off. 1 by default
 8) Calibration coefficient for 1W power, 4 by default for BAT41 diodes
 9) calibration coefficient for 10W power, 14 by default for BAT41 diodes
 10) Peak detector time for Power meassurement in tens ms, 60 (600ms)
 
 If you are using 1N5711 diodes in the RF detector, you can calibrate the power meassurement.
-Apply known 1W of power on 7MHz and change cell 8 for correct value.
+Apply known 1W of power on 7MHz and change cell 8 for correct value (from FW 1.7 on in `main.c`).
 Apply known 10W of power on 7MHw and change cell 9 for correct value.
 Repeat it couple times to reach a good result.
 
@@ -62,6 +93,7 @@ On the front panel there is a control button, a small 0.91" OLED 128 * 32 displa
 [![](https://github.com/Dfinitski/ATU-10-10W-QRP-antenna-tuner/blob/main/Photos/tuner_2.jpg)](https://github.com/Dfinitski/ATU-10-10W-QRP-antenna-tuner/blob/main/Photos/tuner_2.jpg)
 
    The control button has only 3 functions - a short press resets the tuner and sets all relays to their initial state, in which all reactive elements are disabled and do not affect the signal flow through the tuner, a long press causes the tuner to enter the tuning mode and a very long press for more than 5 seconds causes the firmware version to be displayed on the display.
+   > Note (DL8UG): this describes the original firmware. From FW 1.7 on, the short press toggles a true bypass and the very long press powers the tuner off, see *Operation from FW 1.7 on* above.
    The display mainly shows the current transmitter power and SWR in the transmitter cable and sometimes briefly indicates the modes.
    
    The tuner is built on IM41 bistable relays, which means that a significant current is consumed by the tuner only for a short time during tuning; in rest mode, the tuner's relays retain their state for an arbitrarily long time, without consuming power.
