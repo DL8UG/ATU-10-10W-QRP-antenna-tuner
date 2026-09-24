@@ -1,0 +1,13 @@
+// Power and SWR calculation from the detector voltages.
+// Free of hardware access so it also builds on a PC (tools/sim).
+
+#ifndef SWR_H
+#define SWR_H
+
+extern int PWR, SWR, min_for_start;
+extern float Cal_a, Cal_b;
+
+void swr_calc(float F, float R);   // forward and reverse detector voltage in mV
+float sqrt_n(float);
+
+#endif
