@@ -4,6 +4,7 @@
 // XC8 port and improvements (FW 1.7, 1.8): DL8UG, 2026, assisted by Claude Code
 
 #include "pic_init.h"
+#include "nvm.h"
 #include "main.h"
 #include "oled_control.h"
 #include "Soft_I2C.h"
@@ -124,6 +125,11 @@ void __interrupt() interupt(void) {
 void main(void) {
    pic_init();
    cells_reading();
+   // Relays and variables in step: restore the stored setting (true bypass
+   // if there is none) and set the relays to it. After a brown-out the relay
+   // pulses could pull the weak battery down again, so they are skipped then.
+   if(!nvm_restore()){ ind = 0; cap = 0; SW = 0; Bypass = 0; }
+   if(!(nPOR_bit && !nBOR_bit)) Relay_set(ind, cap, SW);
    Red = 1;
    Key_out = 1;
    gre = 1;
@@ -133,8 +139,6 @@ void main(void) {
    Overflow = 0;
    //
    keep_awake();
-   //
-   //Relay_set(0, 0, 0);
    //
    WDTCON0bits.SEN = 1;   // watchdog on
    while(1) {
@@ -404,6 +408,7 @@ void Btn_long(){
    Key_out = 0;
    Bypass = 0;
    tune();
+   nvm_save();
    SWR_ind = SWR;
    SWR_fixed_old = SWR;
    oled_refresh();   // after RF on the lines
@@ -425,6 +430,7 @@ void Ext_long(){
    get_swr();     //
    if(SWR>99){
       tune();
+      nvm_save();
    }
    Key_out = 1;   //
    SWR_ind = SWR;
@@ -469,6 +475,7 @@ void bypass_on(void){
    cap = 0;
    SW = 0;
    Relay_set(ind, cap, SW);
+   nvm_save();
    oled_wr_str(2, 0, "BYPASS   ", 9);
    Delay_ms(600);
    swr_label(5);
@@ -483,6 +490,7 @@ void bypass_off(void){
    cap = byp_cap;
    SW = byp_SW;
    Relay_set(ind, cap, SW);
+   nvm_save();
    SWR_fixed_old = byp_swr_old;   // no immediate auto tune
    swr_label(5);
    SWR_ind = 0;

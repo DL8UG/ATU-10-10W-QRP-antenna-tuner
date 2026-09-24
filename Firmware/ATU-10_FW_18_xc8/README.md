@@ -72,6 +72,7 @@ Fallback: flash `../ATU-10_FW_17_xc8/ATU-10_FW_17_xc8.hex` (FW 1.7, tested on th
 - **Very long press** (approx. 2.5 s): power off.
 - **Short press while tuning**: aborts the tune and switches to bypass.
 - **External interface** (Icom): "Reset" only switches to bypass and never back, "Tune" tunes as before.
+- **Memory** (FW 1.8): the relay setting and the bypass state are stored in the PIC's EEPROM after every tune and bypass change, and restored at start. The relays are latching and keep their setting without power, so after a battery change or reset the tuner carries on with the last tuning, and display and relays agree. Freshly flashed (empty EEPROM) it starts in true bypass. After a brown-out reset (`LOW BATT`) the relays are not pulsed at start.
 
 ## Settings (Cells)
 The values are stored BCD-coded and commented in the `Cells[]` array in `main.c`. They are changed in the code, no longer in the hex.
