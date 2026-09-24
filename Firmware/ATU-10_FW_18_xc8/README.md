@@ -188,4 +188,10 @@ Fixes:
 
 Software can only do so much against very strong RF coupling. If the error still occurs, a ferrite or decoupling on the display lines helps on the hardware side. In any case the display repairs itself after 30 s at the latest.
 
+## Watchdog and brown-out (FW 1.8)
+- **Watchdog** (~8 s): switched on after the start and cleared in the main loop and while tuning waits for the carrier. If the firmware hangs anyway, the tuner restarts instead of freezing. It is off during power off, so sleep is not disturbed.
+- **Brown-out reset** at 2.7 V, active only while running (no extra current in sleep). With an almost empty battery the PIC resets cleanly instead of running out of spec at 32 MHz and pulsing relays at random.
+- After such a restart the SWR line shows for 2 s why: `LOW BATT`, `WDT RESET` or `STACK RST`. Please mention it in error reports. A normal start with a freshly connected battery shows nothing.
+- The config words therefore differ from the mikroC project in CONFIG2 (brown-out) and CONFIG3 (watchdog), and `make` checks the new values.
+
 

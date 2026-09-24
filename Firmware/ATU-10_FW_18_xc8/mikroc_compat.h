@@ -69,6 +69,8 @@ void VDelay_ms(unsigned int ms);
 #define nRMCLR_bit    PCON0bits.nRMCLR
 #undef  nBOR_bit
 #define nBOR_bit      PCON0bits.nBOR
+#undef  nPOR_bit
+#define nPOR_bit      PCON0bits.nPOR
 #undef  LATA2_bit
 #define LATA2_bit     LATAbits.LATA2
 #undef  LATA3_bit

@@ -29,7 +29,7 @@ void get_swr(){
    // it checks the delivered power: the forward power alone goes up to the
    // ADC limit (~20 W) at bad settings on low bands even with 5 W
    while(PWR<min_for_start || PWR_net>max_for_start){   // waiting for good power
-      //
+      CLRWDT();   // tuning may wait up to ~20 s for the carrier
       if(TUNE_ABORT){
          SWR = 0;
          RFL = 10000;

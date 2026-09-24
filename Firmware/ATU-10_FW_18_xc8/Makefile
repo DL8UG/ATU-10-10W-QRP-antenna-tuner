@@ -8,8 +8,9 @@ CPU     = 16LF18877
 DFP    ?= $(lastword $(wildcard $(HOME)/.local/share/microchip/packs/PIC16F1xxxx_DFP/*))
 TARGET  = ATU-10_FW_18_xc8
 SRC     = main.c pic_init.c oled_control.c Soft_I2C.c mikroc_compat.c swr.c tune.c
-# must match the #pragma config values in pic_init.c
-CONFIG  = 2904,3E21,3F1F,3003,0003
+# must match the #pragma config values in pic_init.c (FW 1.8: CONFIG2 brown-out,
+# CONFIG3 watchdog changed against the mikroC project)
+CONFIG  = 2904,3CA1,072D,3003,0003
 
 # C99 mode: float and double are 32 bit like in mikroC
 CFLAGS  = -mcpu=$(CPU) -mdfp=$(DFP)/xc8 -std=c99 -O2

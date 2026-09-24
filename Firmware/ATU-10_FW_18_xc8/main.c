@@ -128,7 +128,7 @@ void main(void) {
    Key_out = 1;
    gre = 1;
    oled_start();
-   //if(Debug) check_reset_flags();
+   check_reset_flags();
    ADC_Init();
    Overflow = 0;
    //
@@ -136,7 +136,9 @@ void main(void) {
    //
    //Relay_set(0, 0, 0);
    //
+   WDTCON0bits.SEN = 1;   // watchdog on
    while(1) {
+      CLRWDT();
       if(tick()>=volt_cnt){   // every 3 second
          volt_cnt += 3000;
          Voltage_show();
@@ -502,7 +504,7 @@ void Greating(){
    oled_wr_str_s(3, 0, " FW VERSION ", 12);
    oled_wr_str_s(3, 12*7, FW_VER, 3);
    Delay_ms(3000);
-   while(GetButton) NOP();
+   while(GetButton) CLRWDT();
    Green = 1;
    return;
 }
@@ -558,6 +560,7 @@ void Relay_set(char L, char C, char I){
 //
 void power_off(void){
    char button_cnt;
+   WDTCON0bits.SEN = 0;   // no watchdog wake-ups in sleep
    // Disable interrupts
    GIE_bit = 0;
    T0EN_bit = 0;
@@ -588,7 +591,7 @@ void power_off(void){
    // Return to work
    gre = 1;
    oled_start();
-   while(GetButton){NOP();}
+   while(GetButton) CLRWDT();
    btn_1_cnt = 0;
    B_short = 0;
    B_long = 0;
@@ -596,19 +599,25 @@ void power_off(void){
    GIE_bit = 0;
    btn_cnt = Tick;
    GIE_bit = 1;
+   WDTCON0bits.SEN = 1;
    return;
 }
 //
+// Show for 2 s why the tuner restarted, unless it was a normal start with a
+// freshly connected battery: tells a weak battery or a firmware hang from
+// other faults, useful for error reports
 void check_reset_flags(void){
-   char i = 0;
-   if(STKOVF_bit){oled_wr_str_s(0,  0, "Stack overflow",  14); i = 1;}
-   if(STKUNF_bit){oled_wr_str_s(1,  0, "Stack underflow", 15); i = 1;}
-   if(!nRWDT_bit){oled_wr_str_s(2,  0, "WDT overflow",    12); i = 1;}
-   if(!nRMCLR_bit){oled_wr_str_s(3, 0, "MCLR reset  ",    12); i = 1;}
-   if(!nBOR_bit){oled_wr_str_s(4,   0, "BOR reset  ",     12); i = 1;}
-   if(i){
-      Delay_ms(5000);
-      oled_clear();
+   const char *msg = 0;
+   if(!nPOR_bit) msg = 0;                        // battery connected
+   else if(!nBOR_bit) msg = "LOW BATT ";         // brown-out reset
+   else if(!nRWDT_bit) msg = "WDT RESET";        // watchdog: firmware hang
+   else if(STKOVF_bit || STKUNF_bit) msg = "STACK RST";
+   PCON0 = 0x3F;   // arm all flags for the next reset, clear the stack flags
+   if(msg){
+      oled_wr_str(2, 0, msg, 9);
+      Delay_ms(2000);
+      swr_label(5);
+      draw_swr(SWR_ind);
    }
    return;
 }

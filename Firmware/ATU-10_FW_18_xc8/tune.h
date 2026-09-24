@@ -9,6 +9,7 @@
 #else
 #define __bit unsigned char
 #define Delay_us(x)
+#define CLRWDT()
 #endif
 
 // provided by main.c (or the simulator)

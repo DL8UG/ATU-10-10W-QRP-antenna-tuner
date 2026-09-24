@@ -3,10 +3,16 @@
 
 // Configuration words of the mikroC project (ATU-10.cfg):
 // CONFIG1..5 = 0x2904, 0x3E21, 0x3F1F, 0x3003, 0x0003
+// Changed since FW 1.8:
+// - brown-out reset at 2.7 V while running (off in sleep, so no extra sleep
+//   current): an almost empty battery resets the PIC cleanly instead of
+//   letting it run out of spec at 32 MHz
+// - watchdog of about 8 s, switched on by software (WDTCON0.SEN) after the
+//   start and off during power off, so a hang resets the tuner
 #pragma config FEXTOSC = OFF, RSTOSC = HFINT32, CLKOUTEN = OFF, CSWEN = ON, FCMEN = ON
-#pragma config MCLRE = ON, PWRTE = ON, LPBOREN = OFF, BOREN = OFF, BORV = LO
+#pragma config MCLRE = ON, PWRTE = ON, LPBOREN = OFF, BOREN = NSLEEP, BORV = HI
 #pragma config ZCD = OFF, PPS1WAY = ON, STVREN = ON, DEBUG = OFF
-#pragma config WDTCPS = WDTCPS_31, WDTE = OFF, WDTCWS = WDTCWS_7, WDTCCS = SC
+#pragma config WDTCPS = WDTCPS_13, WDTE = SWDTEN, WDTCWS = WDTCWS_7, WDTCCS = LFINTOSC
 #pragma config WRT = OFF, SCANE = available, LVP = ON
 #pragma config CP = OFF, CPD = OFF
 // pic_init unit for Micro C PRO
