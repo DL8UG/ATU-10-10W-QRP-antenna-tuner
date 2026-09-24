@@ -21,6 +21,9 @@ int PWR, SWR, SWR_ind = 0, SWR_fixed_old = 100, PWR_fixed_old = 9999, rldl;
 char ind = 0, cap = 0, SW = 0;
 __bit Overflow, gre;
 volatile __bit B_short, B_long, B_xlong, E_short, E_long;
+// set by the interrupt when disp_cnt / off_cnt run out: main cannot read
+// the 32 bit counters atomically, a bit it can
+volatile __bit Disp_expired, Off_expired;
 // Bypass: short press toggles, the tuned setting is kept to switch back
 __bit Bypass;
 char byp_ind, byp_cap, byp_SW;
@@ -50,14 +53,32 @@ const char Cells[10] = {
 
 static void oled_labels(void);
 
+static unsigned long tick(void){   // Tick read atomically
+   unsigned long t;
+   GIE_bit = 0;
+   t = Tick;
+   GIE_bit = 1;
+   return t;
+}
+//
+static void keep_awake(void){   // restart display and power off timers
+   GIE_bit = 0;
+   disp_cnt = Disp_time;
+   off_cnt = Off_time;
+   Disp_expired = 0;
+   Off_expired = 0;
+   GIE_bit = 1;
+   return;
+}
+//
 // interrupt processing
 void __interrupt() interupt(void) {
    //
    if(TMR0IF_bit) {   // Timer0   every 1ms
       TMR0IF_bit = 0;
       Tick++;
-      if(disp_cnt!=0) disp_cnt--;
-      if(off_cnt!=0) off_cnt--;
+      if(disp_cnt!=0 && --disp_cnt==0) Disp_expired = 1;
+      if(off_cnt!=0 && --off_cnt==0) Off_expired = 1;
       TMR0L = 0xC0;   // 8_000 cycles to OF
       TMR0H = 0xE0;
       //
@@ -67,6 +88,8 @@ void __interrupt() interupt(void) {
          if(GetButton | Start){
             disp_cnt = Disp_time;
             off_cnt = Off_time;
+            Disp_expired = 0;
+            Off_expired = 0;
          }
          //
          if(GetButton){  //
@@ -108,33 +131,32 @@ void main(void) {
    ADC_Init();
    Overflow = 0;
    //
-   disp_cnt = Disp_time;
-   off_cnt = Off_time;
+   keep_awake();
    //
    //Relay_set(0, 0, 0);
    //
    while(1) {
-      if(Tick>=volt_cnt){   // every 3 second
+      if(tick()>=volt_cnt){   // every 3 second
          volt_cnt += 3000;
          Voltage_show();
       }
       //
-      if(Tick>=watch_cnt){   // every 300 ms    unless power off
+      if(tick()>=watch_cnt){   // every 300 ms    unless power off
          watch_cnt += 300;
          watch_swr();
          if(oled_fault) oled_refresh();   // display did not answer
       }
       //
-      if(Tick>=refresh_cnt){   // every 30 s
+      if(tick()>=refresh_cnt){   // every 30 s
          oled_refresh();
       }
       //
-      if(Disp_time!=0 && disp_cnt==0){  // Display off
+      if(Disp_time!=0 && Disp_expired){  // Display off
          //Disp = 0;
          OLED_PWD = 0;
       }
       //
-      if(Off_time!=0 && off_cnt==0){    // Go to power off
+      if(Off_time!=0 && Off_expired){    // Go to power off
          power_off();
       }
       //
@@ -182,12 +204,11 @@ void oled_start(){
    PWR_fixed_old = 9999;
    SWR_ind = 0;
    draw_swr(SWR_ind);
-   volt_cnt = Tick + 1;
-   watch_cnt = Tick;
-   refresh_cnt = Tick + 30000;
+   volt_cnt = tick() + 1;
+   watch_cnt = tick();
+   refresh_cnt = tick() + 30000;
    B_short = 0; B_long = 0; B_xlong = 0, E_short = 0; E_long = 0;
-   disp_cnt = Disp_time;
-   off_cnt = Off_time;
+   keep_awake();
    return;
 }
 //
@@ -205,7 +226,7 @@ static void oled_labels(void){   // fixed parts of the screen
 // RF and relay pulses can garble the I2C transfers: free the bus, send the
 // settings again and redraw everything without clearing (no flicker)
 void oled_refresh(void){
-   refresh_cnt = Tick + 30000;
+   refresh_cnt = tick() + 30000;
    if(!OLED_PWD) return;
    oled_fault = 0;
    Soft_I2C_Init();
@@ -232,10 +253,7 @@ void watch_swr(void){
    }
    //
    if(PWR_fixed>0){   // Turn on the display
-      if(OLED_PWD){
-         disp_cnt = Disp_time;
-         off_cnt = Off_time;
-      }
+      if(OLED_PWD) keep_awake();
       else oled_start();
    };
    //
@@ -391,8 +409,8 @@ void Btn_long(){
    B_long = 0;
    E_long = 0;
    btn_1_cnt = 0;
-   volt_cnt = Tick;
-   watch_cnt = Tick;
+   volt_cnt = tick();
+   watch_cnt = tick();
    return;
 }
 //
@@ -421,8 +439,8 @@ static void short_action(char toggle){
    B_short = 0;
    E_short = 0;
    btn_1_cnt = 0;
-   volt_cnt = Tick;
-   watch_cnt = Tick;
+   volt_cnt = tick();
+   watch_cnt = tick();
    return;
 }
 //
@@ -574,7 +592,9 @@ void power_off(void){
    B_short = 0;
    B_long = 0;
    B_xlong = 0;
+   GIE_bit = 0;
    btn_cnt = Tick;
+   GIE_bit = 1;
    return;
 }
 //
@@ -642,10 +662,7 @@ int get_forward(void){
 //
 static void pwr_wake(void){   // power detected: keep the display on
    if(PWR>0){
-      if(OLED_PWD){
-         disp_cnt = Disp_time;
-         off_cnt = Off_time;
-      }
+      if(OLED_PWD) keep_awake();
       else oled_start();
    }
    return;
