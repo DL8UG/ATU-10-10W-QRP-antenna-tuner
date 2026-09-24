@@ -9,6 +9,7 @@ Commits (each can be reverted individually):
 3. `73901f0` bug fixes: `sqrt_n` accuracy, relay state after `coarse_tune`
 4. `d11dd69` tune measurement averages 8 F/R pairs
 5. `5c304a1` tune algorithm: RFL metric, repeated fine search, coarse search up to 64
+6. coarse search with tolerance, antenna test series in the simulator (`make simants`)
 
 ## Building
 ```
@@ -64,7 +65,7 @@ The array no longer has a fixed address (in the original it was `absolute 0x7770
 
 ## Improvements over N7DDC (SWR measurement and tuning)
 Code: `swr.c` (calculation from the detector voltages) and `tune.c` (search). Parameters in `tune.h`:
-`TUNE_GOOD_SWR` 120, `TUNE_AVG` 8, `SHARP_PASSES` 4, `COARSE_MAX` 64.
+`TUNE_GOOD_SWR` 120, `TUNE_AVG` 8, `SHARP_PASSES` 4, `COARSE_MAX` 64, `COARSE_TOL` 25 %, `COARSE_TOL_MAX` 200.
 
 - **Bug in `sqrt_n`**: the start value x/2 with 8 fixed steps did not converge for small Γ. SWR 1.01 was shown as 1.03, 1.02 as 1.04. It now starts at (1+x)/2 and iterates until convergence.
 - **Bug in `coarse_tune`**: the function chose the best variant but left the relays in the state of the last one tried. The following steps therefore started from the wrong state.
@@ -72,6 +73,8 @@ Code: `swr.c` (calculation from the detector voltages) and `tune.c` (search). Pa
 - **RFL metric**: the search minimizes Pr/Pf·10000 instead of the SWR. The SWR is capped at 9.99; above that the search had no gradient and got stuck on high-impedance loads.
 - **Fine search**: up to 4 alternating C/L passes, first with ~10 % steps, then with single steps, until nothing changes. Before, there was only one pass.
 - **Coarse search**: it also tries the largest relay (64), before only up to 32.
+- **Tolerance in the coarse search**: the search continues as long as a step is at most 25 % worse, capped at 200 RFL (2 % of Pr/Pf). This way it gets over small bumps into the valley. The original achieved that as a side effect of the `SWR/10` quantization. Without the cap the search runs away at high SWR.
+- **Dropped**: remembering the best measured setting and jumping back to it at the end. It made no difference in the simulator: in the worse cases the search never measures the good setting in the first place.
 
 ### Simulator
 `make simcompare [TABLE=1] [NOISE=3] [SEEDS="1 2 3"]` compares the frozen original algorithm (`tools/sim/orig`) with the current version.
@@ -83,22 +86,35 @@ The model (`tools/sim/sim.c`) covers:
 - 5 W transmit power, optional Gaussian noise
 - test cases: 9 bands (1.85–28.5 MHz) × 14 loads (12.5 Ω–2 kΩ, plus complex ones)
 
-Result (126 cases):
+Result for the standard set (`make simcompare`, 126 cases):
 
 | | original | new |
 |---|---|---|
-| mean SWR (capped at 10) | 4.23 | 1.81 |
-| SWR ≤ 1.2 | 31.0 % | 41.3 % |
-| SWR ≤ 1.5 | 51.6 % | 62.7 % |
-| relay steps avg / max | 66 / 113 | 86 / 187 (~25 ms per step) |
-| better / worse | – | 67 / 2 |
-| with 3 mV noise, 10 seeds: better / worse | – | 703 / 40 |
+| mean SWR (capped at 10) | 4.23 | 1.89 |
+| SWR ≤ 1.2 | 31.0 % | 45.2 % |
+| SWR ≤ 1.5 | 51.6 % | 64.3 % |
+| relay steps avg / max | 66 / 113 | 89 / 235 (~25 ms per step) |
+| better / worse | – | 72 / 4 |
+| with 3 mV noise, 10 seeds: better / worse | – | 739 / 38 |
 
-The two worse cases:
-- **28.5 MHz / 30+j80:** the original found 1.74 only by chance, because the `coarse_tune` bug left an earlier setting in place. New: 4.87; 1.16 would be reachable.
-- **14.2 MHz / 450 Ω:** 1.50 instead of 1.19.
+Typical antennas (`make simants`), impedances estimated, as seen behind the transformer:
+- Random wire with 9:1 unun: 4+j10 to 350−j50 Ω, 10 loads × 9 bands
+- EFHW (40 m) with 49:1: 25–150 Ω ±j20…100, 8 loads × 4 bands
 
-The greedy search by design cannot find minima that lie off its path. A grid search would fix that, but costs considerably more relay steps.
+| | random wire old | random wire new | EFHW old | EFHW new |
+|---|---|---|---|---|
+| mean SWR | 1.58 | 1.41 | 1.23 | 1.17 |
+| SWR ≤ 1.2 | 26 % | 48 % | 66 % | 75 % |
+| SWR ≤ 1.5 | 58 % | 70 % | 84 % | 94 % |
+| with 3 mV noise: SWR ≤ 1.5 | 46 % | 71 % | 83 % | 94 % |
+| relay steps avg | 50 | 80 | 39 | 53 |
+| better / worse (without noise) | – | 33 / 10 | – | 7 / 1 |
+
+Some cases remain worse than with the original, mainly loads with a large reactive part, for example:
+- Random wire 24.9 MHz / 80+j150: 2.60 instead of 1.04
+- Random wire 14.2 MHz / 15−j40: 3.25 instead of 2.41
+
+The greedy search by design cannot find minima that lie off its path, and every change to the search order shifts which cases get lucky. A grid search would fix that, but costs considerably more relay steps.
 
 ## Open points / risks
 1. **Test on the device still pending**. Test the pure port (`1ff0658`) first, then the improvements:

@@ -25,6 +25,8 @@ void draw_power(unsigned int);
 #define TUNE_AVG 8                 // F/R pairs averaged per measurement while tuning
 #define SHARP_PASSES 4             // max. passes of the fine search
 #define COARSE_MAX 64              // largest relay tried by the coarse search (N7DDC: 32)
+#define COARSE_TOL 25              // % a coarse step may be worse and the search still goes on,
+#define COARSE_TOL_MAX 200         //   but at most this much RFL (2 % of Pr/Pf)
 #define NOT_TRIED 32767
 
 void atu_reset(void);

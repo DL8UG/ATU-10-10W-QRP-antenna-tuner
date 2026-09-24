@@ -2,6 +2,14 @@
 
 static char sharp_fine;   // fine search with single steps
 
+// How much worse a coarse step may be and the search still goes on: a few
+// percent let it cross small bumps on the way into the valley, the limit
+// keeps it from drifting off at high SWR
+static int coarse_tol(int rfl){
+   long t = (long)rfl * COARSE_TOL / 100;
+   return t > COARSE_TOL_MAX ? COARSE_TOL_MAX : (int)t;
+}
+
 void atu_reset(){
    ind = 0;
    cap = 1;
@@ -164,13 +172,13 @@ void coarse_ind_cap(void){
    char ind_mem;
    ind_mem = 0;
    get_swr();
-   RFL_mem = RFL / 100;
+   RFL_mem = RFL;
    for(ind=1; ind<=COARSE_MAX; ind*=2){
       Relay_set(ind, ind, SW);
       get_swr();
-      if(RFL / 100 <= RFL_mem){
+      if(RFL <= RFL_mem + coarse_tol(RFL_mem)){
          ind_mem = ind;
-         RFL_mem = RFL / 100;
+         RFL_mem = RFL;
       }
       else
          break;
@@ -186,13 +194,13 @@ void coarse_cap(void){
    char cap_mem;
    cap_mem = 0;
    get_swr();
-   RFL_mem = RFL / 100;
+   RFL_mem = RFL;
    for(cap=1; cap<=COARSE_MAX; cap*=2){
       Relay_set(ind, cap, SW);
       get_swr();
-      if(RFL / 100 <= RFL_mem){
+      if(RFL <= RFL_mem + coarse_tol(RFL_mem)){
          cap_mem = cap;
-         RFL_mem = RFL / 100;
+         RFL_mem = RFL;
       }
       else
          break;
@@ -207,13 +215,13 @@ void coarse_ind(void){
    char ind_mem;
    ind_mem = 0;
    get_swr();
-   RFL_mem = RFL / 100;
+   RFL_mem = RFL;
    for(ind=1; ind<=COARSE_MAX; ind*=2){
       Relay_set(ind, cap, SW);
       get_swr();
-      if(RFL / 100 <= RFL_mem){
+      if(RFL <= RFL_mem + coarse_tol(RFL_mem)){
          ind_mem = ind;
-         RFL_mem = RFL / 100;
+         RFL_mem = RFL;
       }
       else
          break;

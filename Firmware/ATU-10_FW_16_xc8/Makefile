@@ -26,7 +26,7 @@ $(TARGET).hex: build/ATU-10.hex tools/normalize_hex.py
 clean:
 	rm -rf build $(TARGET).hex
 
-.PHONY: all clean sim simcompare
+.PHONY: all clean sim simcompare simants
 
 # ---- PC simulator of the tuning algorithm (tools/sim), built with the host gcc
 HOSTCC   = gcc
@@ -54,3 +54,14 @@ simcompare: sim
 	@python3 tools/sim/compare.py build/orig.tsv build/new.tsv $(if $(TABLE),--table)
 	@echo "== with $(NOISE) mV noise, seeds $(SEEDS)"
 	@python3 tools/sim/compare.py build/orig_noise.tsv build/new_noise.tsv $(if $(TABLE),--table)
+
+# typical antennas: random wire with 9:1 unun, EFHW with 49:1
+simants: sim
+	tools/sim/antennas.sh build/sim_orig build/ant_orig
+	tools/sim/antennas.sh build/sim_new build/ant_new
+	tools/sim/antennas.sh build/sim_orig build/ant_orig_noise $(NOISE) "$(SEEDS)"
+	tools/sim/antennas.sh build/sim_new build/ant_new_noise $(NOISE) "$(SEEDS)"
+	@for a in rw ef; do \
+	   echo "== $$a without noise"; python3 tools/sim/compare.py build/ant_orig_$$a.tsv build/ant_new_$$a.tsv $(if $(TABLE),--table); \
+	   echo "== $$a with $(NOISE) mV noise"; python3 tools/sim/compare.py build/ant_orig_noise_$$a.tsv build/ant_new_noise_$$a.tsv; \
+	done
