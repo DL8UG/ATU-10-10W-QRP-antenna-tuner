@@ -15,7 +15,7 @@ char txt[8], txt_2[8];
 volatile unsigned long Tick = 0; // ms system tick
 int Voltage, Voltage_old = 0;
 volatile char btn_1_cnt = 0, btn_2_cnt = 0;
-unsigned long volt_cnt = 0, watch_cnt = 0, btn_cnt = 0;
+unsigned long volt_cnt = 0, watch_cnt = 0, btn_cnt = 0, refresh_cnt = 0;
 volatile unsigned long off_cnt = 10, disp_cnt=10;
 int PWR, SWR, SWR_ind = 0, SWR_fixed_old = 100, PWR_fixed_old = 9999, rldl;
 char ind = 0, cap = 0, SW = 0;
@@ -47,6 +47,8 @@ const char Cells[10] = {
 };
 
 #define FW_VER "1.6"
+
+static void oled_labels(void);
 
 // interrupt processing
 void __interrupt() interupt(void) {
@@ -120,6 +122,11 @@ void main(void) {
       if(Tick>=watch_cnt){   // every 300 ms    unless power off
          watch_cnt += 300;
          watch_swr();
+         if(oled_fault) oled_refresh();   // display did not answer
+      }
+      //
+      if(Tick>=refresh_cnt){   // every 30 s
+         oled_refresh();
       }
       //
       if(Disp_time!=0 && disp_cnt==0){  // Display off
@@ -169,10 +176,7 @@ void oled_start(){
       gre = 0;
       oled_clear();
    }
-   oled_wr_str(0, 0, "PWR     W", 9);
-   oled_bat();
-   oled_wr_str(0, 42, "=", 1);
-   swr_label(9);
+   oled_labels();
    Voltage_old = 9999;
    SWR_fixed_old = 100;
    PWR_fixed_old = 9999;
@@ -180,9 +184,36 @@ void oled_start(){
    draw_swr(SWR_ind);
    volt_cnt = Tick + 1;
    watch_cnt = Tick;
+   refresh_cnt = Tick + 30000;
    B_short = 0; B_long = 0; B_xlong = 0, E_short = 0; E_long = 0;
    disp_cnt = Disp_time;
    off_cnt = Off_time;
+   return;
+}
+//
+static void oled_labels(void){   // fixed parts of the screen
+   oled_wr_str(0, 0, "PWR ", 4);
+   oled_wr_str(0, 96, "W", 1);
+   oled_bat();
+   oled_wr_str(0, 42, "=", 1);
+   // like swr_label(4), but one call level less (hardware stack)
+   oled_wr_str(2, 0, Bypass ? "BYP " : "SWR ", 4);
+   oled_wr_str(2, 42, "=", 1);
+   return;
+}
+//
+// RF and relay pulses can garble the I2C transfers: free the bus, send the
+// settings again and redraw everything without clearing (no flicker)
+void oled_refresh(void){
+   refresh_cnt = Tick + 30000;
+   if(!OLED_PWD) return;
+   oled_fault = 0;
+   Soft_I2C_Init();
+   oled_config(0);
+   oled_labels();
+   draw_swr(SWR_ind);
+   PWR_fixed_old = 9999;         // power is redrawn by watch_swr
+   if(Voltage_old!=9999) oled_voltage(Voltage_old);
    return;
 }
 //
@@ -305,6 +336,7 @@ void Voltage_show(){       //  4.2 - 3.4  4200 - 3400
       if(Voltage<=3800) rldl = Rel_Del + 1;
       else rldl = Rel_Del;
    }
+   oled_config(0);   // repair settings garbled by RF, not visible
    //
    if(Voltage>3700){
       Green = 0;
@@ -353,8 +385,7 @@ void Btn_long(){
    tune();
    SWR_ind = SWR;
    SWR_fixed_old = SWR;
-   swr_label(4);
-   draw_swr(SWR_ind);
+   oled_refresh();   // after RF on the lines
    Key_out = 1;
    Green = 1;
    B_long = 0;

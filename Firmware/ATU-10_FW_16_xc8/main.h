@@ -18,6 +18,7 @@ void watch_swr(void);
 void draw_swr(unsigned int);
 void draw_power(unsigned int);
 void oled_start(void);
+void oled_refresh(void);
 void power_off(void);
 void Greating(void);
 void Ext_long(void);

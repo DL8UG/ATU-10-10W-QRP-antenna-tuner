@@ -1,6 +1,7 @@
 #include "mikroc_compat.h"
 #include "oled_control.h"
 #include "Soft_I2C.h"
+#include "pic_init.h"
 
 void oled_disp_on() {
    send_command(0xAF); //  display ON
@@ -10,6 +11,8 @@ void oled_disp_off() {
    send_command(0xAE); // display OFF
 }
 
+__bit oled_fault;   // display did not answer, set_addressing/send_command
+
 void oled_init (void) {  // OLED init
    char cnt;
    for(cnt=0; cnt<10; cnt++){
@@ -18,8 +21,22 @@ void oled_init (void) {  // OLED init
       else Soft_I2C_Stop();
       Delay_ms(300);
    }
+   Soft_I2C_Stop();
+   oled_config(1);
+   //
+   oled_clear();
+   send_command (0xAF); //  display ON
+   return;
+}
+
+// Sends all settings again. RF can turn data bytes into commands, so this
+// is repeated regularly; with first = 0 the display stays on.
+void oled_config (char first) {
+   if(!OLED_PWD) return;
+   Soft_I2C_Start();
+   if(Soft_I2C_Write(oled_addr)) oled_fault = 1;  // device addres
    Soft_I2C_Write(0);              // 0 - continious mode, command; 64 - Co, data
-   Soft_I2C_Write (0xAE); // display OFF
+   if(first) Soft_I2C_Write (0xAE); // display OFF
    //         initialisation
    Soft_I2C_Write (0xD5); // clock division
    Soft_I2C_Write (0x80); // ratio
@@ -69,15 +86,14 @@ void oled_init (void) {  // OLED init
    //
    Soft_I2C_Write (0xA6); // 0xA6 - normal, 0xA7 - inverse
    //
+   if(!first) Soft_I2C_Write (0xAF); // display ON
    Soft_I2C_Stop ();
-   //
-   oled_clear();
-   send_command (0xAF); //  display ON
    return;
 }
 
 void oled_clear(void){
    char i, r;
+   if(!OLED_PWD) return;   // no transfers while switched off
    // ********clear OLED***********
    Soft_I2C_Start();
    Soft_I2C_Write(oled_addr);             // device addres
@@ -93,8 +109,9 @@ void oled_clear(void){
 }
 
 void send_command (char oled_command) {
+   if(!OLED_PWD) return;   // no transfers while switched off
    Soft_I2C_Start();
-   Soft_I2C_Write(oled_addr);         // device addres
+   if(Soft_I2C_Write(oled_addr)) oled_fault = 1;   // device addres
    Soft_I2C_Write(128);              // 128 - command, 192 - data
    Soft_I2C_Write(oled_command);
    Soft_I2C_Stop();
@@ -105,7 +122,7 @@ void set_addressing (char pagenum, char c_start) {
    char a, b, c;
    c = c_start + oled_shift;
    Soft_I2C_Start();
-   Soft_I2C_Write(oled_addr);             // device addres
+   if(Soft_I2C_Write(oled_addr)) oled_fault = 1;   // device addres
    Soft_I2C_Write(0);              // 0 - continious mode, command; 64 - Co, data
    Soft_I2C_Write(0xB0 + pagenum);  // set page number
    //
@@ -136,6 +153,7 @@ static char bar(char u) {
 
 void oled_wr_str_s(char page, char col, const char *str, char len) {  //  128*64 OLED
    char i, h, g;
+   if(!OLED_PWD) return;   // no transfers while switched off
    set_addressing (page, col);
    //
    for (i = 0; i < len; i++) { // write string
@@ -152,6 +170,7 @@ void oled_wr_str_s(char page, char col, const char *str, char len) {  //  128*64
 //
 void oled_wr_str (char page, char col, const char *str, char leng ) {  //
   char i, h, g, w1, w2;
+  if(!OLED_PWD) return;   // no transfers while switched off
   Soft_I2C_Start();
   Soft_I2C_Write(oled_addr);       // device addres
   Soft_I2C_Write(64);              // 0 - continious mode, command; 64 - Co, data
@@ -194,6 +213,7 @@ void oled_wr_str (char page, char col, const char *str, char leng ) {  //
 //
 void oled_bat () {
    char i, g;
+   if(!OLED_PWD) return;   // no transfers while switched off
    Soft_I2C_Start();
    Soft_I2C_Write(oled_addr);       // device addres
    Soft_I2C_Write(64);              // 0 - continious mode, command; 64 - Co, data
@@ -210,6 +230,7 @@ void oled_bat () {
 //
 void oled_voltage(int Voltage) {
    char i, v, u0, u1, u2, u3, m;
+   if(!OLED_PWD) return;   // no transfers while switched off
    Soft_I2C_Start();
    Soft_I2C_Write(oled_addr);       // device addres
    Soft_I2C_Write(64);              // 0 - continious mode, command; 64 - Co, data

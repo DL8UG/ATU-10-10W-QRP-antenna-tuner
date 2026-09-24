@@ -6,6 +6,8 @@ static char oled_shift = 2;  // shift the image left
 static char inversion = 1;
 //
 void oled_init (void);
+void oled_config (char);
+extern __bit oled_fault;
 void oled_clear(void);
 void send_command (char);
 void set_addressing (char, char);
