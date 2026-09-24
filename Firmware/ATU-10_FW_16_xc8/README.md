@@ -10,7 +10,8 @@ Commits (each can be reverted individually):
 4. `d11dd69` tune measurement averages 8 F/R pairs
 5. `5c304a1` tune algorithm: RFL metric, repeated fine search, coarse search up to 64
 6. `980364b` coarse search with tolerance, antenna test series in the simulator (`make simants`)
-7. bypass by short press
+7. `c54e38e` bypass by short press
+8. `d2afd48`, `0e3f518`, `252b25b` display robustness: I2C bus recovery, periodic display reconfiguration, interrupt races (see below)
 
 ## Building
 ```
@@ -22,7 +23,7 @@ make clean
   `~/.local/share/microchip/packs/PIC16F1xxxx_DFP/1.32.471`
   (source: `https://packs.download.microchip.com/Microchip.PIC16F1xxxx_DFP.1.32.471.atpack`, unpacked).
   The `Makefile` finds it automatically, otherwise use `make DFP=/path`.
-- Result: 11,089 of 32,768 program words (pure port: 10,251, mikroC: 9,074). Hardware stack: `main` needs 10 levels, the interrupt only a few (limit 16).
+- Result: 11,408 of 32,768 program words (pure port: 10,251, mikroC: 9,074). Hardware stack according to the XC8 call graph: `main` 14 levels, 15 with the interrupt (limit 16). That is tight, so check after every change: `grep "Estimated maximum stack depth" build/ATU-10.lst`.
 - Listing and map with stack information: `build/ATU-10.lst` and `build/ATU-10.map`
 
 ## Flashing
@@ -140,6 +141,23 @@ Some cases remain worse than with the original, mainly loads with a large reacti
 
 The greedy search by design cannot find minima that lie off its path, and every change to the search order shifts which cases get lucky. A grid search would fix that, but costs considerably more relay steps.
 
+## Display robustness (freezing, strange characters)
+The original 1.6 also shows garbled characters now and then, or the display freezes. This happens mainly while transmitting/tuning and after the display wakes up. Causes in the code:
+
+1. **The display is only configured at power-on and wake-up.** RF and relay pulses can corrupt a bit on the software I2C (open drain, approx. 20 kHz). The SSD1306 then takes data as a command: addressing mode, scroll, start line, remap. The error persists until the display is re-initialized.
+2. **No bus recovery**: if the controller holds SDA low, all further transfers go nowhere.
+3. **Writing to the switched-off display** (`OLED_PWD = 0`), for example the battery indicator every 3 s. The controller can be half powered via SDA/SCL and then starts without a clean reset on wake-up.
+4. **Interrupt races**: `Tick`, `disp_cnt` and `off_cnt` are 32 bits wide and were not read atomically in `main`. The display or the whole device could switch off wrongly because of this.
+
+Fixes:
+- `Soft_I2C_Init()` clocks a hanging slave free with up to 9 SCL pulses.
+- `oled_config()` resends all settings every 3 s. Since no `0xAE` is sent, nothing flickers.
+- `oled_refresh()` does bus recovery, resends the settings and redraws all fields without clearing. This happens after every tune, every 30 s and immediately when the display does not answer with ACK (`oled_fault`).
+- All `oled_*` output does nothing while the display is off.
+- The interrupt reports counter expiry via the bits `Disp_expired`/`Off_expired`. `keep_awake()` and `tick()` access them with interrupts disabled.
+
+Software can only do so much against very strong RF coupling. If the error still occurs, a ferrite or decoupling on the display lines helps on the hardware side. In any case the display repairs itself after 30 s at the latest.
+
 ## Open points / risks
 1. **Test on the device still pending**. Test the pure port (`1ff0658`) first, then the improvements:
    - Splash screen "FW VERSION 1.6"
@@ -150,6 +168,7 @@ The greedy search by design cannot find minima that lie off its path, and every 
    - Power-off and wake-up via button (IOC on RB5)
    - then with the improvements: SWR into a 50 Ω dummy load (should now show ~1.0x instead of ~1.03), tuning into 2–3 mismatches (e.g. 25/100/200 Ω), comparing the reached SWR and tune time with the pure port
    - adjust the parameters in `tune.h` if needed, running the simulator first
+   - Display: tune several times with 5–10 W into a mismatch, wait for the display timeout 20× and wake it up (for testing set Cell 1 = 0x01). Briefly pull SDA to GND during operation: the display must recover by itself within 30 s at the latest.
 2. **Simulator vs. reality**: the model is idealized (no relay stray inductance, no frequency dependence of the bridge, noise estimated). The trend should be right, absolute values not necessarily.
 3. **A/D converter**: the behavior of the mikroC library is not documented and was rebuilt from the datasheet. If the readings differ, look here first (FVR, reference, acquisition time 20 µs).
 4. **USB flashing**: if the programmer does not accept the hex, disassemble `../../PIC16F1454_FW.hex` with `gpdasm` and find out what its parser expects.
