@@ -35,7 +35,12 @@ Commits (each can be reverted individually):
 8. `d2afd48`, `0e3f518`, `252b25b` display robustness: I2C bus recovery, periodic display reconfiguration, interrupt races (see below)
 9. `2940851` tuning on 80 m no longer aborts showing "~20 W": the upper power limit checks Pf − Pr instead of Pf, plus a simulator with source impedance (see below)
 10. `a7f7b1e` version bumped to 1.7, folder and hex renamed to `ATU-10_FW_17_xc8`
-11. FW 1.8 started in the new folder `ATU-10_FW_18_xc8`; FW 1.7 stays unchanged in `ATU-10_FW_17_xc8`
+11. `81807fe` FW 1.8 started in the new folder `ATU-10_FW_18_xc8`; FW 1.7 stays unchanged in `ATU-10_FW_17_xc8`
+12. `9e56c9a` clean tune abort by short press, 2 more levels of hardware stack
+13. `9203b2f` watchdog and brown-out reset, reset reason on the display
+14. `54096cf` failed tune leaves true bypass
+15. `48189a7` relay setting and bypass state kept in the EEPROM
+16. `aeeffb8` quick retune from the current setting (`make simretune`)
 
 ## Building
 ```
@@ -47,7 +52,7 @@ make clean
   `~/.local/share/microchip/packs/PIC16F1xxxx_DFP/1.32.471`
   (source: `https://packs.download.microchip.com/Microchip.PIC16F1xxxx_DFP.1.32.471.atpack`, unpacked).
   The `Makefile` finds it automatically, otherwise use `make DFP=/path`.
-- Result: 11,408 of 32,768 program words (pure port: 10,251, mikroC: 9,074). Hardware stack according to the XC8 call graph: `main` 12 levels, 13 with the interrupt (limit 16; FW 1.7: 14/15). Check it after every change: `grep "Estimated maximum stack depth" build/ATU-10.lst`.
+- Result: 12,188 of 32,768 program words (FW 1.7: 11,532, pure port: 10,251, mikroC: 9,074). Hardware stack according to the XC8 call graph: `main` 12 levels, 13 with the interrupt (limit 16; FW 1.7: 14/15). Check it after every change: `grep "Estimated maximum stack depth" build/ATU-10.lst`.
 - Listing and map with stack information: `build/ATU-10.lst` and `build/ATU-10.map`
 
 ## Flashing
