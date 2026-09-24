@@ -49,7 +49,7 @@ const char Cells[10] = {
    0x60    // 10) peak detector time for power measurement in tens of ms
 };
 
-#define FW_VER "1.6"
+#define FW_VER "1.7"
 
 static void oled_labels(void);
 

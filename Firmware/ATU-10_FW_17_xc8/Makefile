@@ -1,12 +1,12 @@
-# ATU-10 firmware 1.6, built with Microchip XC8
-#   make        -> ATU-10_FW_16_xc8.hex (copy it onto the tuner's USB drive)
+# ATU-10 firmware 1.7, built with Microchip XC8
+#   make        -> ATU-10_FW_17_xc8.hex (copy it onto the tuner's USB drive)
 #   make clean
 
 XC8    ?= $(firstword $(wildcard /opt/microchip/xc8/*/bin/xc8-cc) xc8-cc)
 CPU     = 16LF18877
 # Device Family Pack from https://packs.download.microchip.com (XC8 v3+ ships without it)
 DFP    ?= $(lastword $(wildcard $(HOME)/.local/share/microchip/packs/PIC16F1xxxx_DFP/*))
-TARGET  = ATU-10_FW_16_xc8
+TARGET  = ATU-10_FW_17_xc8
 SRC     = main.c pic_init.c oled_control.c Soft_I2C.c mikroc_compat.c swr.c tune.c
 # must match the #pragma config values in pic_init.c
 CONFIG  = 2904,3E21,3F1F,3003,0003

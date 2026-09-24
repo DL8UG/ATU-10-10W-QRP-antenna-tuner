@@ -1,6 +1,7 @@
-# ATU-10 FW 1.6 – XC8 port (Linux)
+# ATU-10 FW 1.7 – XC8 port (Linux)
 
 Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
+FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below.
 The original sources are left unchanged. Status: 2026-09-24, branch `xc8-port`. **Not yet tested on the device.**
 
 Commits (each can be reverted individually):
@@ -12,11 +13,12 @@ Commits (each can be reverted individually):
 6. `980364b` coarse search with tolerance, antenna test series in the simulator (`make simants`)
 7. `c54e38e` bypass by short press
 8. `d2afd48`, `0e3f518`, `252b25b` display robustness: I2C bus recovery, periodic display reconfiguration, interrupt races (see below)
-9. tuning on 80 m no longer aborts showing "~20 W": the upper power limit checks Pf − Pr instead of Pf, plus a simulator with source impedance (see below)
+9. `2940851` tuning on 80 m no longer aborts showing "~20 W": the upper power limit checks Pf − Pr instead of Pf, plus a simulator with source impedance (see below)
+10. version bumped to 1.7, folder and hex renamed to `ATU-10_FW_17_xc8`
 
 ## Building
 ```
-make          # -> ATU-10_FW_16_xc8.hex
+make          # -> ATU-10_FW_17_xc8.hex
 make clean
 ```
 - Compiler: XC8 v4.00 (AUR `microchip-mplabxc8-bin`, installed under `/opt/microchip/xc8/v4.00`)
@@ -166,7 +168,7 @@ Software can only do so much against very strong RF coupling. If the error still
 
 ## Open points / risks
 1. **Test on the device still pending**. Test the pure port (`1ff0658`) first, then the improvements:
-   - Splash screen "FW VERSION 1.6"
+   - Splash screen "FW VERSION 1.6" (pure port) or "FW VERSION 1.7" (current version)
    - Battery indicator
    - Short, long and very long button press
    - Tuning into a dummy load
