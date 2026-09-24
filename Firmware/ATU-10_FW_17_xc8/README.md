@@ -4,6 +4,18 @@ Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Micro
 FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below.
 The original sources are left unchanged. Status: 2026-09-24, branch `xc8-port`. **Not yet tested on the device.**
 
+## Acknowledgements
+Many thanks to David Fainitski, N7DDC, the original developer of the ATU-10, for his work on
+the hardware and the firmware, and for publishing it.
+
+Since development of this project appeared to have stalled, and I ran into some problems with
+my own tuner, I took the liberty of picking up his FW 1.6, porting it to Linux (free XC8
+compiler instead of mikroC) and improving it.
+
+Programming was assisted by Claude Code (Anthropic).
+
+— DL8UG
+
 Commits (each can be reverted individually):
 1. `1ff0658` pure port, behaves like N7DDC 1.6
 2. `4000158` tune/SWR code moved to `tune.c`/`swr.c` plus PC simulator, no change in behavior
@@ -166,19 +178,4 @@ Fixes:
 
 Software can only do so much against very strong RF coupling. If the error still occurs, a ferrite or decoupling on the display lines helps on the hardware side. In any case the display repairs itself after 30 s at the latest.
 
-## Open points / risks
-1. **Test on the device still pending**. Test the pure port (`1ff0658`) first, then the improvements:
-   - Splash screen "FW VERSION 1.6" (pure port) or "FW VERSION 1.7" (current version)
-   - Battery indicator
-   - Short, long and very long button press
-   - Tuning into a dummy load
-   - Power and SWR compared to the original
-   - Power-off and wake-up via button (IOC on RB5)
-   - then with the improvements: SWR into a 50 Ω dummy load (should now show ~1.0x instead of ~1.03), tuning into 2–3 mismatches (e.g. 25/100/200 Ω), comparing the reached SWR and tune time with the pure port
-   - adjust the parameters in `tune.h` if needed, running the simulator first
-   - Tune on 80 m into the random wire with 5 W: > 15 W may be shown briefly during tuning, but tuning must run to completion
-   - Display: tune several times with 5–10 W into a mismatch, wait for the display timeout 20× and wake it up (for testing set Cell 1 = 0x01). Briefly pull SDA to GND during operation: the display must recover by itself within 30 s at the latest.
-2. **Simulator vs. reality**: the model is idealized (no relay stray inductance, no frequency dependence of the bridge, noise estimated). The trend should be right, absolute values not necessarily.
-3. **A/D converter**: the behavior of the mikroC library is not documented and was rebuilt from the datasheet. If the readings differ, look here first (FVR, reference, acquisition time 20 µs).
-4. **USB flashing**: if the programmer does not accept the hex, disassemble `../../PIC16F1454_FW.hex` with `gpdasm` and find out what its parser expects.
-5. The `-Wsign-conversion` and `& vs ==` warnings come from the original code and mean the same as under mikroC. They are intentionally left untouched.
+

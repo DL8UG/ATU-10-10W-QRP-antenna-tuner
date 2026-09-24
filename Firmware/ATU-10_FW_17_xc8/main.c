@@ -1,6 +1,7 @@
 #include "mikroc_compat.h"
 // David Fainitski, N7DDC
 // 2020
+// XC8 port and improvements (FW 1.7): DL8UG, 2026, assisted by Claude Code
 
 #include "pic_init.h"
 #include "main.h"
