@@ -7,7 +7,8 @@
 // swr_reached is the true SWR of the relays as actually set, swr_best the
 // best SWR of all 2 x 128 x 128 settings (brute force).
 //
-// Usage: sim [--noise mV] [--seed n]
+// Usage: sim [--noise mV] [--seed n] [--case MHz R X]
+//   --case runs a single load and traces every relay step to stderr
 
 #include <complex.h>
 #include <math.h>
@@ -37,6 +38,7 @@ static double complex Z_load;
 static char r_ind, r_cap, r_sw;   // relays as actually switched
 static long relay_steps;
 static double noise_mv;
+static int trace;
 
 static double complex par(double complex a, double complex b) {
    return a * b / (a + b);
@@ -90,6 +92,9 @@ static int adc_mv(double mv) {
 void Relay_set(char l, char c, char sw) {
    r_ind = l & 0x7F; r_cap = c & 0x7F; r_sw = sw;
    relay_steps++;
+   if(trace)
+      fprintf(stderr, "%4ld  SW=%d L=%3d C=%3d  SWR %.3f\n", relay_steps, r_sw, r_ind, r_cap,
+              swr_of(gamma_of(r_ind, r_cap, r_sw)));
 }
 
 static void measure(int *f, int *r) {
@@ -118,22 +123,30 @@ void Btn_short(void) {}
 void draw_power(unsigned int p) { (void)p; }
 
 // ---- test cases
-static const double bands[] = {1.85, 3.6, 7.1, 10.12, 14.2, 18.1, 21.2, 24.9, 28.5};
-static const double complex loads[] = {
+static double bands[] = {1.85, 3.6, 7.1, 10.12, 14.2, 18.1, 21.2, 24.9, 28.5};
+static double complex loads[] = {
    12.5, 25, 50, 100, 200, 450, 1000, 2000,
    10 - 100 * I, 30 + 80 * I, 300 + 300 * I, 2000 - 500 * I, 5 - 20 * I, 150 - 150 * I,
 };
 
 int main(int argc, char **argv) {
    unsigned seed = 1;
+   size_t nbands = sizeof bands / sizeof *bands, nloads = sizeof loads / sizeof *loads;
    for(int i = 1; i < argc; i++) {
       if(!strcmp(argv[i], "--noise") && i + 1 < argc) noise_mv = atof(argv[++i]);
       else if(!strcmp(argv[i], "--seed") && i + 1 < argc) seed = atoi(argv[++i]);
-      else { fprintf(stderr, "usage: %s [--noise mV] [--seed n]\n", argv[0]); return 2; }
+      else if(!strcmp(argv[i], "--case") && i + 3 < argc) {
+         bands[0] = atof(argv[i + 1]);
+         loads[0] = atof(argv[i + 2]) + atof(argv[i + 3]) * I;
+         nbands = nloads = 1;
+         trace = 1;
+         i += 3;
+      }
+      else { fprintf(stderr, "usage: %s [--noise mV] [--seed n] [--case MHz R X]\n", argv[0]); return 2; }
    }
    srand(seed);
-   for(size_t b = 0; b < sizeof bands / sizeof *bands; b++) {
-      for(size_t l = 0; l < sizeof loads / sizeof *loads; l++) {
+   for(size_t b = 0; b < nbands; b++) {
+      for(size_t l = 0; l < nloads; l++) {
          double best = 1;
          freq = bands[b] * 1e6;
          Z_load = loads[l];

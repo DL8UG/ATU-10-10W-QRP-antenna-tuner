@@ -1,5 +1,7 @@
 #include "swr.h"
 
+int RFL;
+
 void swr_calc(float F, float R){
    volatile float gamma;
    //
@@ -8,6 +10,9 @@ void swr_calc(float F, float R){
    F = Cal_a * F * F + Cal_b * F;
    R = Cal_a * R * R + Cal_b * R;
    PWR = (int)(F * 10 + 0.5);         // 0 - 150 (0 - 15.0 Watts)
+   // Tuning metric: SWR saturates at 9.99, the power ratio does not
+   if(F <= 0 || R >= F) RFL = 10000;
+   else RFL = (int)(R / F * 10000 + 0.5);
    //
    if(PWR<min_for_start)  SWR = 0;      // < 1W
    else if(R >= F) SWR = 999;

@@ -1,5 +1,7 @@
 #include "tune.h"
 
+static char sharp_fine;   // fine search with single steps
+
 void atu_reset(){
    ind = 0;
    cap = 1;
@@ -62,22 +64,22 @@ void get_swr(){
 }
 //
 void tune(void){
-   int SWR_mem;
+   int RFL_mem;
    char cap_mem, ind_mem;
    //
    get_swr();
-   if(SWR<=120) return;
+   if(SWR<=TUNE_GOOD_SWR) return;
    subtune();
    get_swr();
-   if(SWR<=120) return;
-   SWR_mem = SWR;
+   if(SWR<=TUNE_GOOD_SWR) return;
+   RFL_mem = RFL;
    cap_mem = cap;
    ind_mem = ind;
    if(SW==1) SW = 0;
    else SW = 1;
    subtune();
    get_swr();
-   if(SWR>SWR_mem){
+   if(RFL>RFL_mem){
       if(SW==1) SW = 0;
       else SW = 1;
       cap = cap_mem;
@@ -85,7 +87,7 @@ void tune(void){
       Relay_set(ind, cap, SW);
       get_swr();
    }
-   if(SWR<=120) return;
+   if(SWR<=TUNE_GOOD_SWR) return;
    sharp_tune();
    get_swr();
    if(SWR==999)
@@ -98,22 +100,22 @@ void subtune(void){
    ind = 0;
    Relay_set(ind, cap, SW);
    get_swr();
-   if(SWR<=120) return;
+   if(SWR<=TUNE_GOOD_SWR) return;
    coarse_tune();
    get_swr();
-   if(SWR<=120) return;
+   if(SWR<=TUNE_GOOD_SWR) return;
    sharp_tune();
    return;
 }
 //
 void coarse_tune(void){
-   int SWR_mem1 = 10000, SWR_mem2 = 10000, SWR_mem3 = 10000;
+   int RFL_mem1 = NOT_TRIED, RFL_mem2 = NOT_TRIED, RFL_mem3 = NOT_TRIED;
    char ind_mem1, cap_mem1, ind_mem2, cap_mem2, ind_mem3, cap_mem3;
    coarse_cap();
    coarse_ind();
    get_swr();
-   if(SWR<=120) return;
-   SWR_mem1 = SWR;
+   if(SWR<=TUNE_GOOD_SWR) return;
+   RFL_mem1 = RFL;
    ind_mem1 = ind;
    cap_mem1 = cap;
    if(cap<=2 & ind<=2){
@@ -123,8 +125,8 @@ void coarse_tune(void){
       coarse_ind();
       coarse_cap();
       get_swr();
-      if(SWR<=120) return;
-      SWR_mem2 = SWR;
+      if(SWR<=TUNE_GOOD_SWR) return;
+      RFL_mem2 = RFL;
       ind_mem2 = ind;
       cap_mem2 = cap;
    }
@@ -134,42 +136,41 @@ void coarse_tune(void){
       Relay_set(ind, cap, SW);
       coarse_ind_cap();
       get_swr();
-      if(SWR<=120) return;
-      SWR_mem3 = SWR;
+      if(SWR<=TUNE_GOOD_SWR) return;
+      RFL_mem3 = RFL;
       ind_mem3 = ind;
       cap_mem3 = cap;
    }
-   if(SWR_mem1<=SWR_mem2 & SWR_mem1<=SWR_mem3){
+   if(RFL_mem1<=RFL_mem2 & RFL_mem1<=RFL_mem3){
       cap = cap_mem1;
       ind = ind_mem1;
    }
-   else if(SWR_mem2<=SWR_mem1 & SWR_mem2<=SWR_mem3){
+   else if(RFL_mem2<=RFL_mem1 & RFL_mem2<=RFL_mem3){
       cap = cap_mem2;
       ind = ind_mem2;
    }
-   else if(SWR_mem3<=SWR_mem1 & SWR_mem3<=SWR_mem2){
+   else if(RFL_mem3<=RFL_mem1 & RFL_mem3<=RFL_mem2){
       cap = cap_mem3;
       ind = ind_mem3;
    }
    // the relays still hold the last variant tried, switch to the best one
-   if(SWR_mem2!=10000 || SWR_mem3!=10000)
+   if(RFL_mem2!=NOT_TRIED || RFL_mem3!=NOT_TRIED)
       Relay_set(ind, cap, SW);
    return;
 }
 //
 void coarse_ind_cap(void){
-   int SWR_mem;
+   int RFL_mem;
    char ind_mem;
    ind_mem = 0;
    get_swr();
-   SWR_mem = SWR / 10;
-   for(ind=1; ind<64; ind*=2){
+   RFL_mem = RFL / 100;
+   for(ind=1; ind<=COARSE_MAX; ind*=2){
       Relay_set(ind, ind, SW);
       get_swr();
-      SWR = SWR/10;
-      if(SWR<=SWR_mem){
+      if(RFL / 100 <= RFL_mem){
          ind_mem = ind;
-         SWR_mem = SWR;
+         RFL_mem = RFL / 100;
       }
       else
          break;
@@ -181,18 +182,17 @@ void coarse_ind_cap(void){
 }
 //
 void coarse_cap(void){
-   int SWR_mem;
+   int RFL_mem;
    char cap_mem;
    cap_mem = 0;
    get_swr();
-   SWR_mem = SWR / 10;
-   for(cap=1; cap<64; cap*=2){
+   RFL_mem = RFL / 100;
+   for(cap=1; cap<=COARSE_MAX; cap*=2){
       Relay_set(ind, cap, SW);
       get_swr();
-      SWR = SWR/10;
-      if(SWR<=SWR_mem){
+      if(RFL / 100 <= RFL_mem){
          cap_mem = cap;
-         SWR_mem = SWR;
+         RFL_mem = RFL / 100;
       }
       else
          break;
@@ -203,18 +203,17 @@ void coarse_cap(void){
 }
 //
 void coarse_ind(void){
-   int SWR_mem;
+   int RFL_mem;
    char ind_mem;
    ind_mem = 0;
    get_swr();
-   SWR_mem = SWR / 10;
-   for(ind=1; ind<64; ind*=2){
+   RFL_mem = RFL / 100;
+   for(ind=1; ind<=COARSE_MAX; ind*=2){
       Relay_set(ind, cap, SW);
       get_swr();
-      SWR = SWR/10;
-      if(SWR<=SWR_mem){
+      if(RFL / 100 <= RFL_mem){
          ind_mem = ind;
-         SWR_mem = SWR;
+         RFL_mem = RFL / 100;
       }
       else
          break;
@@ -225,38 +224,52 @@ void coarse_ind(void){
 }
 //
 void sharp_tune(void){
-   if(cap>=ind){
-      sharp_cap();
-      sharp_ind();
+   // L and C interact, so one pass over each often stops short of the
+   // optimum: repeat until a pass changes nothing, first with steps of
+   // about 10 %, then with single steps
+   char pass, cap_start, ind_start;
+   sharp_fine = 0;
+   for(pass=0; pass<SHARP_PASSES; pass++){
+      cap_start = cap;
+      ind_start = ind;
+      if(cap>=ind){
+         sharp_cap();
+         sharp_ind();
+      }
+      else{
+         sharp_ind();
+         sharp_cap();
+      }
+      if(cap==cap_start && ind==ind_start){
+         if(sharp_fine) break;
+         sharp_fine = 1;   // no gain with steps of 10 %: go on with single steps
+      }
    }
-   else{
-      sharp_ind();
-      sharp_cap();
-   }
+   sharp_fine = 0;
    return;
 }
 //
 void sharp_cap(void){
-   int SWR_mem;
+   int RFL_mem;
    char step, cap_mem;
    cap_mem = cap;
-   step = cap / 10;
+   step = sharp_fine ? 1 : cap / 10;
    if(step==0) step = 1;
    get_swr();
-   SWR_mem = SWR;
+   RFL_mem = RFL;
    cap += step;
    Relay_set(ind, cap, SW);
    get_swr();
-   if(SWR<=SWR_mem){
-      SWR_mem = SWR;
+   if(RFL<=RFL_mem){
+      RFL_mem = RFL;
       cap_mem = cap;
       for(cap+=step; cap<=(127-step); cap+=step){
          Relay_set(ind, cap, SW);
          get_swr();
-         if(SWR<=SWR_mem){
+         if(RFL<=RFL_mem){
             cap_mem = cap;
-            SWR_mem = SWR;
-            step = cap / 10;
+            RFL_mem = RFL;
+            step = sharp_fine ? 1 : cap / 10;
             if(step==0) step = 1;
          }
          else
@@ -264,14 +277,14 @@ void sharp_cap(void){
       }
    }
    else{
-      SWR_mem = SWR;
+      RFL_mem = RFL;
       for(cap-=step; cap>=step; cap-=step){
          Relay_set(ind, cap, SW);
          get_swr();
-         if(SWR<=SWR_mem){
+         if(RFL<=RFL_mem){
             cap_mem = cap;
-            SWR_mem = SWR;
-            step = cap / 10;
+            RFL_mem = RFL;
+            step = sharp_fine ? 1 : cap / 10;
             if(step==0) step = 1;
          }
          else
@@ -284,26 +297,26 @@ void sharp_cap(void){
 }
 //
 void sharp_ind(void){
-   int SWR_mem;
+   int RFL_mem;
    char step, ind_mem;
    ind_mem = ind;
-   step = ind / 10;
+   step = sharp_fine ? 1 : ind / 10;
    if(step==0) step = 1;
    get_swr();
-   SWR_mem = SWR;
+   RFL_mem = RFL;
    ind += step;
    Relay_set(ind, cap, SW);
    get_swr();
-   if(SWR<=SWR_mem){
-      SWR_mem = SWR;
+   if(RFL<=RFL_mem){
+      RFL_mem = RFL;
       ind_mem = ind;
       for(ind+=step; ind<=(127-step); ind+=step){
          Relay_set(ind, cap, SW);
          get_swr();
-         if(SWR<=SWR_mem){
+         if(RFL<=RFL_mem){
             ind_mem = ind;
-            SWR_mem = SWR;
-            step = ind / 10;
+            RFL_mem = RFL;
+            step = sharp_fine ? 1 : ind / 10;
             if(step==0) step = 1;
          }
          else
@@ -311,14 +324,14 @@ void sharp_ind(void){
       }
    }
    else{
-      SWR_mem = SWR;
+      RFL_mem = RFL;
       for(ind-=step; ind>=step; ind-=step){
          Relay_set(ind, cap, SW);
          get_swr();
-         if(SWR<=SWR_mem){
+         if(RFL<=RFL_mem){
             ind_mem = ind;
-            SWR_mem = SWR;
-            step = ind / 10;
+            RFL_mem = RFL;
+            step = sharp_fine ? 1 : ind / 10;
             if(step==0) step = 1;
          }
          else
