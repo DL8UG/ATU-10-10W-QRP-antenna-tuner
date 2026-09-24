@@ -96,8 +96,12 @@ void tune(void){
    if(SWR<=TUNE_GOOD_SWR) return;
    sharp_tune();
    get_swr();
-   if(SWR==999)
-      atu_reset();
+   if(SWR==999){   // no match found: true bypass (N7DDC: atu_reset, C = 22 pF)
+      ind = 0;
+      cap = 0;
+      SW = 0;
+      Relay_set(ind, cap, SW);
+   }
    return;
 }
 //
