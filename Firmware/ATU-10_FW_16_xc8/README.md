@@ -1,7 +1,14 @@
 # ATU-10 FW 1.6 – XC8 port (Linux)
 
 Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
-The original sources are left unchanged. Status: 2026-09-23. **Not yet tested on the device.**
+The original sources are left unchanged. Status: 2026-09-24, branch `xc8-port`. **Not yet tested on the device.**
+
+Commits (each can be reverted individually):
+1. `1ff0658` pure port, behaves like N7DDC 1.6
+2. `4000158` tune/SWR code moved to `tune.c`/`swr.c` plus PC simulator, no change in behavior
+3. `73901f0` bug fixes: `sqrt_n` accuracy, relay state after `coarse_tune`
+4. `d11dd69` tune measurement averages 8 F/R pairs
+5. `5c304a1` tune algorithm: RFL metric, repeated fine search, coarse search up to 64
 
 ## Building
 ```
@@ -13,7 +20,7 @@ make clean
   `~/.local/share/microchip/packs/PIC16F1xxxx_DFP/1.32.471`
   (source: `https://packs.download.microchip.com/Microchip.PIC16F1xxxx_DFP.1.32.471.atpack`, unpacked).
   The `Makefile` finds it automatically, otherwise use `make DFP=/path`.
-- Result: 10,251 of 32,768 program words (mikroC: 9,074). Hardware stack: `main` needs 9 levels, the interrupt only a few (limit 16).
+- Result: 11,089 of 32,768 program words (pure port: 10,251, mikroC: 9,074). Hardware stack: `main` needs 10 levels, the interrupt only a few (limit 16).
 - Listing and map with stack information: `build/ATU-10.lst` and `build/ATU-10.map`
 
 ## Flashing
@@ -55,14 +62,55 @@ The array no longer has a fixed address (in the original it was `absolute 0x7770
 - **`volatile`** for all variables changed by the interrupt: Tick, counters, button flags.
 - **Config bits**: the raw values from `ATU-10.cfg` are implemented as named `#pragma config`. XC8 sets the unused bits to 1, which has no effect.
 
+## Improvements over N7DDC (SWR measurement and tuning)
+Code: `swr.c` (calculation from the detector voltages) and `tune.c` (search). Parameters in `tune.h`:
+`TUNE_GOOD_SWR` 120, `TUNE_AVG` 8, `SHARP_PASSES` 4, `COARSE_MAX` 64.
+
+- **Bug in `sqrt_n`**: the start value x/2 with 8 fixed steps did not converge for small Γ. SWR 1.01 was shown as 1.03, 1.02 as 1.04. It now starts at (1+x)/2 and iterates until convergence.
+- **Bug in `coarse_tune`**: the function chose the best variant but left the relays in the state of the last one tried. The following steps therefore started from the wrong state.
+- **Measurement during tuning**: `get_pwr_avg(8)` averages 8 alternately measured F/R pairs. Before: minimum of up to 5 individual SWR values, noisy and too optimistic. Without a carrier the wait loop is just as fast, so the timeout does not change. The display and the peak detection in `watch_swr` still use the single measurement.
+- **RFL metric**: the search minimizes Pr/Pf·10000 instead of the SWR. The SWR is capped at 9.99; above that the search had no gradient and got stuck on high-impedance loads.
+- **Fine search**: up to 4 alternating C/L passes, first with ~10 % steps, then with single steps, until nothing changes. Before, there was only one pass.
+- **Coarse search**: it also tries the largest relay (64), before only up to 32.
+
+### Simulator
+`make simcompare [TABLE=1] [NOISE=3] [SEEDS="1 2 3"]` compares the frozen original algorithm (`tools/sim/orig`) with the current version.
+`build/sim_new --case 28.5 30 80` logs a single case step by step.
+
+The model (`tools/sim/sim.c`) covers:
+- relay values 0.1–10 µH and 22–2200 pF, Q=100, 10 pF stray capacitance, C on either the transmitter or the load side
+- bridge according to the cal formula, ADC range switching as in `get_forward`
+- 5 W transmit power, optional Gaussian noise
+- test cases: 9 bands (1.85–28.5 MHz) × 14 loads (12.5 Ω–2 kΩ, plus complex ones)
+
+Result (126 cases):
+
+| | original | new |
+|---|---|---|
+| mean SWR (capped at 10) | 4.23 | 1.81 |
+| SWR ≤ 1.2 | 31.0 % | 41.3 % |
+| SWR ≤ 1.5 | 51.6 % | 62.7 % |
+| relay steps avg / max | 66 / 113 | 86 / 187 (~25 ms per step) |
+| better / worse | – | 67 / 2 |
+| with 3 mV noise, 10 seeds: better / worse | – | 703 / 40 |
+
+The two worse cases:
+- **28.5 MHz / 30+j80:** the original found 1.74 only by chance, because the `coarse_tune` bug left an earlier setting in place. New: 4.87; 1.16 would be reachable.
+- **14.2 MHz / 450 Ω:** 1.50 instead of 1.19.
+
+The greedy search by design cannot find minima that lie off its path. A grid search would fix that, but costs considerably more relay steps.
+
 ## Open points / risks
-1. **Test on the device still pending**:
+1. **Test on the device still pending**. Test the pure port (`1ff0658`) first, then the improvements:
    - Splash screen "FW VERSION 1.6"
    - Battery indicator
    - Short, long and very long button press
    - Tuning into a dummy load
    - Power and SWR compared to the original
    - Power-off and wake-up via button (IOC on RB5)
-2. **A/D converter**: the behavior of the mikroC library is not documented and was rebuilt from the datasheet. If the readings differ, look here first (FVR, reference, acquisition time 20 µs).
-3. **USB flashing**: if the programmer does not accept the hex, disassemble `../../PIC16F1454_FW.hex` with `gpdasm` and find out what its parser expects.
-4. The `-Wsign-conversion` and `& vs ==` warnings come from the original code and mean the same as under mikroC. They are intentionally left untouched.
+   - then with the improvements: SWR into a 50 Ω dummy load (should now show ~1.0x instead of ~1.03), tuning into 2–3 mismatches (e.g. 25/100/200 Ω), comparing the reached SWR and tune time with the pure port
+   - adjust the parameters in `tune.h` if needed, running the simulator first
+2. **Simulator vs. reality**: the model is idealized (no relay stray inductance, no frequency dependence of the bridge, noise estimated). The trend should be right, absolute values not necessarily.
+3. **A/D converter**: the behavior of the mikroC library is not documented and was rebuilt from the datasheet. If the readings differ, look here first (FVR, reference, acquisition time 20 µs).
+4. **USB flashing**: if the programmer does not accept the hex, disassemble `../../PIC16F1454_FW.hex` with `gpdasm` and find out what its parser expects.
+5. The `-Wsign-conversion` and `& vs ==` warnings come from the original code and mean the same as under mikroC. They are intentionally left untouched.
