@@ -1,6 +1,7 @@
-> **Fork note (DL8UG):** this fork contains FW 1.7, a port of N7DDC's FW 1.6 to Linux/XC8 with
-> tuning, bypass and display improvements, see
-> [Firmware/ATU-10_FW_17_xc8](Firmware/ATU-10_FW_17_xc8/README.md). Many thanks to N7DDC for the original work.
+> **Fork note (DL8UG):** this fork contains ports of N7DDC's FW 1.6 to Linux/XC8 with
+> tuning, bypass, display and robustness improvements:
+> [FW 1.8](Firmware/ATU-10_FW_18_xc8/README.md) (latest) and
+> [FW 1.7](Firmware/ATU-10_FW_17_xc8/README.md) (tested on the device). Many thanks to N7DDC for the original work.
 
 # ATU-10  - The Tyny QRP Automatic Antenna Tuner
 
