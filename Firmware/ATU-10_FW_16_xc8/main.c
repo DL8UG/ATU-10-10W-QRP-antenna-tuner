@@ -38,7 +38,8 @@ const char Cells[10] = {
    0x07,   // 3) relay delay time in ms
    0x10,   // 4) min power to start tuning in tenths of a Watt, must not be 0
    0x15,   // 5) max power to start tuning in Watts
-   0x13,   // 6) SWR change that starts auto tuning, in tenths above 1.0 (13 = change of 0.3)
+   0x13,   // 6) auto tuning starts when the SWR is above 1.2 and has changed since the
+           //    last tune by more than (value - 10) tenths: 13 = change of more than 0.3
    0x01,   // 7) auto mode: 1 = on, 0 = off
    0x04,   // 8) calibration coefficient for 1 W (4 for BAT41 diodes)
    0x14,   // 9) calibration coefficient for 10 W (14 for BAT41 diodes)
