@@ -12,6 +12,7 @@ Commits (each can be reverted individually):
 6. `980364b` coarse search with tolerance, antenna test series in the simulator (`make simants`)
 7. `c54e38e` bypass by short press
 8. `d2afd48`, `0e3f518`, `252b25b` display robustness: I2C bus recovery, periodic display reconfiguration, interrupt races (see below)
+9. tuning on 80 m no longer aborts showing "~20 W": the upper power limit checks Pf − Pr instead of Pf, plus a simulator with source impedance (see below)
 
 ## Building
 ```
@@ -99,11 +100,16 @@ Code: `swr.c` (calculation from the detector voltages) and `tune.c` (search). Pa
 - **Fine search**: up to 4 alternating C/L passes, first with ~10 % steps, then with single steps, until nothing changes. Before, there was only one pass.
 - **Coarse search**: it also tries the largest relay (64), before only up to 32.
 - **Tolerance in the coarse search**: the search continues as long as a step is at most 25 % worse, capped at 200 RFL (2 % of Pr/Pf). This way it gets over small bumps into the valley. The original achieved that as a side effect of the `SWR/10` quantization. Without the cap the search runs away at high SWR.
+- **Abort showing ~20 W (80 m, random wire)**: the wait loop in `get_swr` waits as long as the power is outside cells 4…5. The upper limit checked the forward power Pf. But a QRP PA is not a 50 Ω source: at badly mismatched intermediate settings (on 80 m with large L/C) the reflection is reflected again at the TRX, and Pf rises up to the ADC limit (~19–20 W depending on battery voltage), even though the TRX only delivers 5 W. The loop then hung for ~20 s, showed the peak power and aborted tuning via timeout (`SWR = 0`). This also happened with the original, but the coarse search up to 64 made it much more frequent. The upper limit now checks `PWR_net` = Pf − Pr, i.e. the power the transmitter actually delivers. That is what matters for protecting the relays. The lower limit (carrier present) and the display stay with Pf.
 - **Dropped**: remembering the best measured setting and jumping back to it at the end. It made no difference in the simulator: in the worse cases the search never measures the good setting in the first place.
 
 ### Simulator
 `make simcompare [TABLE=1] [NOISE=3] [SEEDS="1 2 3"]` compares the frozen original algorithm (`tools/sim/orig`) with the current version.
 `build/sim_new --case 28.5 30 80` logs a single case step by step.
+`build/sim_new --sweep 3.6 --rs 10` computes a grid over the whole impedance plane (R 2–5000 Ω, X ±3000 Ω, 500 loads). Column 6 counts how often `get_swr` had to wait for "good power" and displayed the power, column 7 the highest power displayed.
+`--rs` models the TRX as a source with internal resistance (5 W into 50 Ω). Pf then rises above 5 W on mismatch, as with a real rig. Without `--rs`, Pf stays at a constant 5 W and all other results are unchanged.
+
+Grid at 3.6 MHz, aborts due to "too much power" before / after the Pf−Pr change: Rs 10 Ω: 334 → 0 of 500, Rs 5 Ω: 428 → 0 (original N7DDC: 26 and 14). With Rs = 10 Ω the rate of SWR ≤ 1.5 rises from 5.4 % to 7.4 % (only 157 of the 500 loads in the grid are tunable at all, i.e. 31 %). For extreme loads with SWR > 50 the measurement saturates and the search is initially blind there, with and without source impedance.
 
 The model (`tools/sim/sim.c`) covers:
 - relay values 0.1–10 µH and 22–2200 pF, Q=100, 10 pF stray capacitance, C on either the transmitter or the load side
@@ -168,6 +174,7 @@ Software can only do so much against very strong RF coupling. If the error still
    - Power-off and wake-up via button (IOC on RB5)
    - then with the improvements: SWR into a 50 Ω dummy load (should now show ~1.0x instead of ~1.03), tuning into 2–3 mismatches (e.g. 25/100/200 Ω), comparing the reached SWR and tune time with the pure port
    - adjust the parameters in `tune.h` if needed, running the simulator first
+   - Tune on 80 m into the random wire with 5 W: > 15 W may be shown briefly during tuning, but tuning must run to completion
    - Display: tune several times with 5–10 W into a mismatch, wait for the display timeout 20× and wake it up (for testing set Cell 1 = 0x01). Briefly pull SDA to GND during operation: the display must recover by itself within 30 s at the latest.
 2. **Simulator vs. reality**: the model is idealized (no relay stray inductance, no frequency dependence of the bridge, noise estimated). The trend should be right, absolute values not necessarily.
 3. **A/D converter**: the behavior of the mikroC library is not documented and was rebuilt from the datasheet. If the readings differ, look here first (FVR, reference, acquisition time 20 µs).

@@ -13,7 +13,7 @@
 
 // provided by main.c (or the simulator)
 extern char ind, cap, SW;
-extern int PWR, SWR, RFL, PWR_fixed_old, min_for_start, max_for_start;
+extern int PWR, SWR, RFL, PWR_net, PWR_fixed_old, min_for_start, max_for_start;
 extern volatile __bit B_short, B_xlong;
 void Relay_set(char, char, char);
 void get_pwr(void);

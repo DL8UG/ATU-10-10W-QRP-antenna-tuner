@@ -25,7 +25,10 @@ void get_swr(){
    SWR = 0;
    PWR_max = 0;
    //
-   while(PWR<min_for_start || PWR>max_for_start){   // waiting for good power
+   // The upper limit protects the relays from a too strong transmitter, so
+   // it checks the delivered power: the forward power alone goes up to the
+   // ADC limit (~20 W) at bad settings on low bands even with 5 W
+   while(PWR<min_for_start || PWR_net>max_for_start){   // waiting for good power
       //
       if(B_short){
          Btn_short();
@@ -43,14 +46,14 @@ void get_swr(){
       // used before was noisy and too optimistic. Without carrier the loop
       // takes as long as before, which keeps the timeout below unchanged.
       get_pwr();
-      if(PWR>min_for_start & PWR<max_for_start)
+      if(PWR>min_for_start & PWR_net<max_for_start)
          get_pwr_avg(TUNE_AVG);
       else {
          Delay_us(500);
          get_pwr();
       }
       //
-      if(PWR>min_for_start & PWR<max_for_start)
+      if(PWR>min_for_start & PWR_net<max_for_start)
          break;
       //
       if(pwr_cnt>0){

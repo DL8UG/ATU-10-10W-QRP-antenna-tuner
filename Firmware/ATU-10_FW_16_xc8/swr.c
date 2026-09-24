@@ -1,6 +1,6 @@
 #include "swr.h"
 
-int RFL;
+int RFL, PWR_net;
 
 void swr_calc(float F, float R){
    volatile float gamma;
@@ -10,6 +10,10 @@ void swr_calc(float F, float R){
    F = Cal_a * F * F + Cal_b * F;
    R = Cal_a * R * R + Cal_b * R;
    PWR = (int)(F * 10 + 0.5);         // 0 - 150 (0 - 15.0 Watts)
+   // Power the transmitter delivers. A QRP rig is no 50 Ohm source: at a
+   // mismatch the reflected wave comes back from it and the forward power
+   // rises far above its output, forward minus reverse does not
+   PWR_net = R < F ? (int)((F - R) * 10 + 0.5) : 0;
    // Tuning metric: SWR saturates at 9.99, the power ratio does not
    if(F <= 0 || R >= F) RFL = 10000;
    else RFL = (int)(R / F * 10000 + 0.5);
