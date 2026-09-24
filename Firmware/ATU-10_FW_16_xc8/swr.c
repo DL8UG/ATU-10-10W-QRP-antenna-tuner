@@ -25,14 +25,17 @@ void swr_calc(float F, float R){
 }
 //
 float sqrt_n(float x){   // Thanks, Newton !
+   // Starting at x/2 with a fixed number of steps did not converge for
+   // small x (SWR 1.01 was shown as 1.03), so start at (1 + x) / 2, which
+   // is close for 0 <= x <= 1, and iterate until the value settles.
    char i;
-   #define n 8
-   float a[n];
-   a[0] = x/2;
-   for(i=1; i<(n); i++)
-      a[i] = (a[i-1] + x/a[i-1]) / 2;
-   //
-   return a[n-1];
-   #undef n
+   float a, b;
+   if(x <= 0) return 0;
+   a = (1 + x) / 2;
+   for(i = 0; i < 20; i++) {
+      b = (a + x / a) / 2;
+      if(a - b < a * 0.0001) return b;   // Newton approaches from above
+      a = b;
+   }
+   return a;
 }
-//

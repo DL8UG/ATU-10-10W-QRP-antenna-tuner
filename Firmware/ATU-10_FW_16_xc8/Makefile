@@ -32,6 +32,7 @@ clean:
 HOSTCC   = gcc
 SIMFLAGS = -O2 -std=c99 -funsigned-char -D_DEFAULT_SOURCE
 NOISE   ?= 3
+SEEDS   ?= 1 2 3 4 5 6 7 8 9 10
 
 build/sim_new: tools/sim/sim.c swr.c tune.c swr.h tune.h
 	mkdir -p build
@@ -47,9 +48,9 @@ sim: build/sim_new build/sim_orig
 simcompare: sim
 	build/sim_orig > build/orig.tsv
 	build/sim_new > build/new.tsv
-	build/sim_orig --noise $(NOISE) > build/orig_noise.tsv
-	build/sim_new --noise $(NOISE) > build/new_noise.tsv
+	for s in $(SEEDS); do build/sim_orig --noise $(NOISE) --seed $$s; done > build/orig_noise.tsv
+	for s in $(SEEDS); do build/sim_new --noise $(NOISE) --seed $$s; done > build/new_noise.tsv
 	@echo "== without noise"
 	@python3 tools/sim/compare.py build/orig.tsv build/new.tsv $(if $(TABLE),--table)
-	@echo "== with $(NOISE) mV noise"
+	@echo "== with $(NOISE) mV noise, seeds $(SEEDS)"
 	@python3 tools/sim/compare.py build/orig_noise.tsv build/new_noise.tsv $(if $(TABLE),--table)

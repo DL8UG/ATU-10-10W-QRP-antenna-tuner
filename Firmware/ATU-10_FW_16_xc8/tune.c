@@ -155,6 +155,9 @@ void coarse_tune(void){
       cap = cap_mem3;
       ind = ind_mem3;
    }
+   // the relays still hold the last variant tried, switch to the best one
+   if(SWR_mem2!=10000 || SWR_mem3!=10000)
+      Relay_set(ind, cap, SW);
    return;
 }
 //
