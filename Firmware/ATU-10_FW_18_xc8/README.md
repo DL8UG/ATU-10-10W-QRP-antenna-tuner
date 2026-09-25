@@ -1,8 +1,8 @@
-# ATU-10 FW 1.8 (beta) – XC8 port (Linux)
+# ATU-10 FW 1.8 – XC8 port (Linux)
 
 Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
 FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below; FW 1.8 adds quick retune, memory of the relay setting, watchdog/brown-out and a clean tune abort.
-The original sources are left unchanged. Status: 2026-09-24. **FW 1.8 is a beta: not yet tested on the device. FW 1.7 is the stable version (tested on the device by DL8UG), see `../ATU-10_FW_17_xc8`.**
+The original sources are left unchanged. Status: 2026-09-25. **FW 1.8 is stable: tested on the device by DL8UG and working. The previous version FW 1.7 is in `../ATU-10_FW_17_xc8`.**
 
 ## Acknowledgements
 Many thanks to David Fainitski, N7DDC, the original developer of the ATU-10, for his work on
@@ -195,6 +195,8 @@ Fixes:
 - The interrupt reports counter expiry via the bits `Disp_expired`/`Off_expired`. `keep_awake()` and `tick()` access them with interrupts disabled.
 
 Software can only do so much against very strong RF coupling. If the error still occurs, a ferrite or decoupling on the display lines helps on the hardware side. In any case the display repairs itself after 30 s at the latest.
+
+If the display fails completely (stays dark or garbled), for example when plugging in cables, simply restart the tuner (power off and on). After that it runs stable.
 
 ## Watchdog and brown-out (FW 1.8)
 - **Watchdog** (~8 s): switched on after the start and cleared in the main loop and while tuning waits for the carrier. If the firmware hangs anyway, the tuner restarts instead of freezing. It is off during power off, so sleep is not disturbed.

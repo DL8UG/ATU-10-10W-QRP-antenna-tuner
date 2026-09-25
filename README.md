@@ -9,8 +9,8 @@ Many thanks to David Fainitski, N7DDC, for the original hardware and firmware. P
 
 | Version | Firmware | Status |
 |---|---|---|
-| FW 1.8 | [Firmware/ATU-10_FW_18_xc8](Firmware/ATU-10_FW_18_xc8/README.md), `ATU-10_FW_18_xc8.zip` | **beta**: newest, not yet tested on the device |
-| FW 1.7 | [Firmware/ATU-10_FW_17_xc8](Firmware/ATU-10_FW_17_xc8/README.md), `ATU-10_FW_17_xc8.zip`, [release v1.7](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.7) | **stable**: tested on the device, recommended |
+| FW 1.8 | [Firmware/ATU-10_FW_18_xc8](Firmware/ATU-10_FW_18_xc8/README.md), `ATU-10_FW_18_xc8.zip`, [release v1.8](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.8) | **stable**: newest, tested on the device by DL8UG and working, recommended |
+| FW 1.7 | [Firmware/ATU-10_FW_17_xc8](Firmware/ATU-10_FW_17_xc8/README.md), `ATU-10_FW_17_xc8.zip`, [release v1.7](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.7) | **stable**: tested on the device, previous version |
 | FW 1.6 and older | `Firmware/ATU-10_FW_16` … `ATU-10_FW_10` | original N7DDC firmware (mikroC) |
 
 **Flashing** works as before: connect the tuner via USB-C and copy the hex onto its USB drive. Any older hex can be flashed back the same way.
@@ -21,19 +21,20 @@ Many thanks to David Fainitski, N7DDC, for the original hardware and firmware. P
 - Very long press (approx. 2.5 s): power off.
 - External interface (Icom): "Reset" switches to bypass only, "Tune" tunes as before.
 - FW 1.8: the relay setting survives a reset or battery change. After an unusual restart the display shows the reason for 2 s (`LOW BATT`, `WDT RESET`, `STACK RST`).
+- Display: if the display fails completely (stays dark or garbled), for example when plugging in cables, simply restart the tuner (power off and on). After that it runs stable.
 
 **Settings (Cells) from FW 1.7 on** are set in `Cells[]` in `main.c` and the firmware is rebuilt, there is no hex editing any more. The meaning of the cells is the same, see *Cells description* below.
 
 **Feedback** is very welcome, especially test reports with other antennas and bands: please open an [issue](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/issues) or post in the [ATU100 group](https://groups.io/g/ATU100).
 
-###### New in FW version 1.8 (DL8UG, beta)
+###### New in FW version 1.8 (DL8UG, stable)
 1 - Quick retune: after a QSY a fine search from the current setting comes first, which needs about 60 % fewer relay steps.
 2 - The relay setting and bypass state are kept in the EEPROM, so display and relays agree after a reset or battery change.
 3 - Watchdog and brown-out reset, the reason of a restart is shown on the display.
 4 - A short press while tuning now cancels cleanly (FW 1.6 showed bypass while the relays were tuned).
 5 - A failed tune ends in true bypass instead of leaving 22 pF in parallel.
 
-###### New in FW version 1.7 (DL8UG, stable)
+###### New in FW version 1.7 (DL8UG)
 1 - Port from mikroC to the free Microchip XC8 compiler, builds on Linux.
 2 - Fixes: SWR display accuracy (1.01 was shown as 1.03), relay state after the coarse search.
 3 - Better tuning: averaged measurement, Pr/Pf metric instead of the capped SWR, repeated fine search, coarse search up to relay 64 with tolerance.
