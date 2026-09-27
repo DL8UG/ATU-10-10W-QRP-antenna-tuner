@@ -9,8 +9,8 @@ Many thanks to David Fainitski, N7DDC, for the original hardware and firmware. P
 
 | Version | Firmware | Status |
 |---|---|---|
-| FW 1.8.1 | [Firmware/ATU-10_FW_181_xc8](Firmware/ATU-10_FW_181_xc8/README.md), `ATU-10_FW_181_xc8.zip` | **beta**: newest, automatic display reset against display lock-ups, not yet tested on the device |
-| FW 1.8 | [Firmware/ATU-10_FW_18_xc8](Firmware/ATU-10_FW_18_xc8/README.md), `ATU-10_FW_18_xc8.zip`, [release v1.8](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.8) | **stable**: tested on the device by DL8UG and working, recommended |
+| FW 1.8.1 | [Firmware/ATU-10_FW_181_xc8](Firmware/ATU-10_FW_181_xc8/README.md), `ATU-10_FW_181_xc8.zip`, [release v1.8.1](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.8.1) | **stable**: newest, automatic display reset against display lock-ups, tested on the device by DL8UG and working, recommended |
+| FW 1.8 | [Firmware/ATU-10_FW_18_xc8](Firmware/ATU-10_FW_18_xc8/README.md), `ATU-10_FW_18_xc8.zip`, [release v1.8](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.8) | **stable**: tested on the device by DL8UG and working, previous version |
 | FW 1.7 | [Firmware/ATU-10_FW_17_xc8](Firmware/ATU-10_FW_17_xc8/README.md), `ATU-10_FW_17_xc8.zip`, [release v1.7](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/releases/tag/v1.7) | **stable**: tested on the device, previous version |
 | FW 1.6 and older | `Firmware/ATU-10_FW_16` … `ATU-10_FW_10` | original N7DDC firmware (mikroC) |
 
@@ -28,7 +28,7 @@ Many thanks to David Fainitski, N7DDC, for the original hardware and firmware. P
 
 **Feedback** is very welcome, especially test reports with other antennas and bands: please open an [issue](https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/issues) or post in the [ATU100 group](https://groups.io/g/ATU100).
 
-###### New in FW version 1.8.1 (DL8UG, beta)
+###### New in FW version 1.8.1 (DL8UG, stable)
 1 - Automatic display reset (short power cycle) every 10 min without RF and after repeated display faults, against display lock-ups (vertical stripes) after a longer run time.  
 2 - Display settings are resent with a NOP prefix, so a command garbled by RF cannot shift them.
 

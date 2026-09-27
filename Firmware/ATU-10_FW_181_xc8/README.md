@@ -2,7 +2,7 @@
 
 Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
 FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below; FW 1.8 adds quick retune, memory of the relay setting, watchdog/brown-out and a clean tune abort; FW 1.8.1 adds an automatic display reset against display lock-ups.
-The original sources are left unchanged. Status: 2026-09-27. **FW 1.8.1 is beta: not yet tested on the device. The stable version FW 1.8 is in `../ATU-10_FW_18_xc8`, FW 1.7 in `../ATU-10_FW_17_xc8`.**
+The original sources are left unchanged. Status: 2026-09-27. **FW 1.8.1 is stable: tested on the device by DL8UG and working. The previous version FW 1.8 is in `../ATU-10_FW_18_xc8`, FW 1.7 in `../ATU-10_FW_17_xc8`.**
 
 ## Acknowledgements
 Many thanks to David Fainitski, N7DDC, the original developer of the ATU-10, for his work on
