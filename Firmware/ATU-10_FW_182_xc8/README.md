@@ -1,0 +1,223 @@
+# ATU-10 FW 1.8.2 – XC8 port (Linux)
+
+Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
+FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below; FW 1.8 adds quick retune, memory of the relay setting, watchdog/brown-out and a clean tune abort; FW 1.8.1 adds an automatic display reset against display lock-ups; FW 1.8.2 resets the display after each transmission and checks its status.
+The original sources are left unchanged. Status: 2026-09-29. **FW 1.8.2 is beta: not yet tested on the device. The previous stable version FW 1.8.1 is in `../ATU-10_FW_181_xc8`, FW 1.8 in `../ATU-10_FW_18_xc8`, FW 1.7 in `../ATU-10_FW_17_xc8`.**
+
+## Acknowledgements
+Many thanks to David Fainitski, N7DDC, the original developer of the ATU-10, for his work on
+the hardware and the firmware, and for publishing it.
+
+Since development of this project appeared to have stalled, and I ran into some problems with
+my own tuner, I took the liberty of picking up his FW 1.6, porting it to Linux (free XC8
+compiler instead of mikroC) and improving it.
+
+Programming was assisted by Claude Code (Anthropic).
+
+— DL8UG
+
+## Feedback wanted
+Feedback from the community is very welcome, especially test reports from other tuners,
+antennas and bands, and readings that differ from FW 1.6 (power, SWR, tuning result, display).
+Please open an issue at https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/issues
+or post in the ATU100 group at https://groups.io/g/ATU100.
+Useful details: band, rig and power, antenna and transformer, SWR before/after, and the Cells
+settings if they were changed.
+
+Commits (each can be reverted individually):
+1. `1ff0658` pure port, behaves like N7DDC 1.6
+2. `4000158` tune/SWR code moved to `tune.c`/`swr.c` plus PC simulator, no change in behavior
+3. `73901f0` bug fixes: `sqrt_n` accuracy, relay state after `coarse_tune`
+4. `d11dd69` tune measurement averages 8 F/R pairs
+5. `5c304a1` tune algorithm: RFL metric, repeated fine search, coarse search up to 64
+6. `980364b` coarse search with tolerance, antenna test series in the simulator (`make simants`)
+7. `c54e38e` bypass by short press
+8. `d2afd48`, `0e3f518`, `252b25b` display robustness: I2C bus recovery, periodic display reconfiguration, interrupt races (see below)
+9. `2940851` tuning on 80 m no longer aborts showing "~20 W": the upper power limit checks Pf − Pr instead of Pf, plus a simulator with source impedance (see below)
+10. `a7f7b1e` version bumped to 1.7, folder and hex renamed to `ATU-10_FW_17_xc8`
+11. `81807fe` FW 1.8 started in the new folder `ATU-10_FW_18_xc8`; FW 1.7 stays unchanged in `ATU-10_FW_17_xc8`
+12. `9e56c9a` clean tune abort by short press, 2 more levels of hardware stack
+13. `9203b2f` watchdog and brown-out reset, reset reason on the display
+14. `54096cf` failed tune leaves true bypass
+15. `48189a7` relay setting and bypass state kept in the EEPROM
+16. `aeeffb8` quick retune from the current setting (`make simretune`)
+17. FW 1.8.1 started in the new folder `ATU-10_FW_181_xc8`: automatic display reset (power cycle) every 10 min without RF and after 3 display faults in a row, NOP prefix in `oled_config()` (see *Display robustness*)
+18. FW 1.8.2 started in the new folder `ATU-10_FW_182_xc8`: display reset 2 s after each transmission, display status check every 3 s, test build `make debug` (see *Display robustness*)
+
+## Building
+```
+make          # -> ATU-10_FW_182_xc8.hex
+make debug    # -> ATU-10_FW_182_xc8_debug.hex (test build, display status on the screen)
+make clean
+```
+- Compiler: XC8 v4.00 (AUR `microchip-mplabxc8-bin`, installed under `/opt/microchip/xc8/v4.00`)
+- Device Family Pack: XC8 v4 no longer ships it, so it lives under
+  `~/.local/share/microchip/packs/PIC16F1xxxx_DFP/1.32.471`
+  (source: `https://packs.download.microchip.com/Microchip.PIC16F1xxxx_DFP.1.32.471.atpack`, unpacked).
+  The `Makefile` finds it automatically, otherwise use `make DFP=/path`.
+- Result: 12,485 of 32,768 program words (FW 1.8.1: 12,346, FW 1.8: 12,188, FW 1.7: 11,532, pure port: 10,251, mikroC: 9,074). Hardware stack according to the XC8 call graph: `main` 12 levels, 13 with the interrupt (limit 16; FW 1.7: 14/15). Check it after every change: `grep "Estimated maximum stack depth" build/ATU-10.lst`.
+- Listing and map with stack information: `build/ATU-10.lst` and `build/ATU-10.map`
+
+## Flashing
+Same as with the original: connect the tuner via USB-C, copy the hex onto the USB drive, run `sync`.
+The PIC16F1454 on the board acts as the programmer; its parser is closed source.
+`tools/normalize_hex.py` therefore writes the hex in mikroC format:
+- CRLF line endings, upper case
+- only record types 00, 04 and 01, no 04 record at the start
+- at most 16 bytes per record
+
+The script also checks the config words against `ATU-10.cfg`, but only the bits the chip actually uses.
+`normalize_hex.py --check FILE` checks the format of a file. The original FW 1.5 hex passes this check.
+
+Fallback: flash `../ATU-10_FW_17_xc8/ATU-10_FW_17_xc8.hex` (FW 1.7, tested on the device) or `../ATU-10_FW_15/ATU-10_FW_15.hex` the same way. There is no FW 1.6 hex in the repo; the groups.io group ATU100 may have one.
+
+## Operation
+- **Short press**: bypass on or off.
+  - On: the relays go to L=0/C=0, the display briefly shows "BYPASS", then "BYP = x.xx". The tuned setting is remembered, auto mode is paused.
+  - Off: the remembered setting is restored without an immediate auto-tune.
+  - The original did a "RESET" to L=0/C=1 here (22 pF stayed in parallel), and auto mode then started again right away.
+- **Long press**: tune. Ends an active bypass.
+- **Very long press** (approx. 2.5 s): power off.
+- **Short press while tuning**: aborts the tune and switches to bypass.
+- **External interface** (Icom): "Reset" only switches to bypass and never back, "Tune" tunes as before.
+- **Memory** (FW 1.8): the relay setting and the bypass state are stored in the PIC's EEPROM after every tune and bypass change, and restored at start. The relays are latching and keep their setting without power, so after a battery change or reset the tuner carries on with the last tuning, and display and relays agree. Freshly flashed (empty EEPROM) it starts in true bypass. After a brown-out reset (`LOW BATT`) the relays are not pulsed at start.
+
+## Settings (Cells)
+The values are stored BCD-coded and commented in the `Cells[]` array in `main.c`. They are changed in the code, no longer in the hex.
+The array no longer has a fixed address (in the original it was `absolute 0x7770`).
+
+Explanations (traced from the code):
+- **Cell 4, minimum power** (`0x10` = 1.0 W, unit 0.1 W): from this power on, the SWR is calculated and displayed (below it "0.00"), and auto-tune triggers. Tuning only starts at power *above* the value (`PWR > min_for_start`).
+  - 0.5 W works with `0x05`, but the measurement becomes less accurate: at 0.5 W the reflected detector delivers only about 10 mV at SWR 1.2 and about 44 mV at SWR 1.5, with an ADC resolution of 1 mV.
+  - Simulator with 3 mV noise: practically unchanged for the EFHW; for the random wire the rate of SWR ≤ 1.5 drops from 71 % to 68 %. The real diodes deviate more from the calibration formula at such small voltages. So it is better to tune with 2–5 W.
+  - 0 is not allowed, otherwise any noise already counts as a carrier.
+- **Cell 6, auto-tune threshold** (`0x13`): auto-tune starts when all of these conditions hold:
+  - The SWR is above 1.2.
+  - It has changed by more than (value − 10) tenths since the last tune, i.e. by more than 0.3 for `0x13`. Alternatively an SWR above 9.69 is enough.
+  - The power is within the window of cells 4 and 5.
+  - No bypass is active.
+  
+  So the value is not an SWR limit of 1.3. After a reset or display wake-up the reference value is reset. Tuning itself ends at SWR ≤ 1.2 (`TUNE_GOOD_SWR`).
+
+## What was changed
+- **`mikroc_compat.h/.c`**: replacement for the mikroC libraries
+  - Register bits `*_bit` → `REGbits.X`: the XC8 header defines these names too, but only for assembler, hence `#undef` and redefine.
+  - `Delay_ms/us`, `VDelay_ms`
+  - `IntToStr` (6 characters right-aligned plus `\0`) and `Bcd2Dec`
+  - `ADC_Init`, `ADC_Init_Advanced`, `ADC_Get_Sample` for the ADC² module: FRC clock, right-justified result, reference FVR 1.024 V / 2.048 V or Vdd
+- **Syntax translated**:
+  - `iv 0x0004` → `__interrupt()`
+  - `bit` → `__bit`
+  - `sbit … at` → `#define`
+  - `x.Bn` → `BIT(x,n)`
+  - `asm NOP/sleep` → `NOP()/SLEEP()`
+  - variable-length array in `sqrt_n` → fixed size
+  - `static oled_addr` → `static char`
+  - `code` removed from the font
+  - `const char*` for the string parameters
+- **Semantics fixed**: in C, `~PORTB.B5` is always true, so it is now `!` (affects `GetButton` and `Start`).
+- **Bit reshuffling in the display** (`oled_wr_str`): new helper function `dbl_nibble()`. Tested on the PC against the original logic; all 256 values match.
+- **Battery bar**: the original shifts by −1 bit, which is undefined in C. The new helper function `bar()` returns 0 for 0.
+- **`volatile`** for all variables changed by the interrupt: Tick, counters, button flags.
+- **Config bits**: the raw values from `ATU-10.cfg` are implemented as named `#pragma config`. XC8 sets the unused bits to 1, which has no effect.
+
+## Improvements over N7DDC (SWR measurement and tuning)
+Code: `swr.c` (calculation from the detector voltages) and `tune.c` (search). Parameters in `tune.h`:
+`TUNE_GOOD_SWR` 120, `TUNE_AVG` 8, `SHARP_PASSES` 4, `COARSE_MAX` 64, `COARSE_TOL` 25 %, `COARSE_TOL_MAX` 200.
+
+- **Bug in `sqrt_n`**: the start value x/2 with 8 fixed steps did not converge for small Γ. SWR 1.01 was shown as 1.03, 1.02 as 1.04. It now starts at (1+x)/2 and iterates until convergence.
+- **Bug in `coarse_tune`**: the function chose the best variant but left the relays in the state of the last one tried. The following steps therefore started from the wrong state.
+- **Measurement during tuning**: `get_pwr_avg(8)` averages 8 alternately measured F/R pairs. Before: minimum of up to 5 individual SWR values, noisy and too optimistic. Without a carrier the wait loop is just as fast, so the timeout does not change. The display and the peak detection in `watch_swr` still use the single measurement.
+- **RFL metric**: the search minimizes Pr/Pf·10000 instead of the SWR. The SWR is capped at 9.99; above that the search had no gradient and got stuck on high-impedance loads.
+- **Fine search**: up to 4 alternating C/L passes, first with ~10 % steps, then with single steps, until nothing changes. Before, there was only one pass.
+- **Coarse search**: it also tries the largest relay (64), before only up to 32.
+- **Tolerance in the coarse search**: the search continues as long as a step is at most 25 % worse, capped at 200 RFL (2 % of Pr/Pf). This way it gets over small bumps into the valley. The original achieved that as a side effect of the `SWR/10` quantization. Without the cap the search runs away at high SWR.
+- **Abort showing ~20 W (80 m, random wire)**: the wait loop in `get_swr` waits as long as the power is outside cells 4…5. The upper limit checked the forward power Pf. But a QRP PA is not a 50 Ω source: at badly mismatched intermediate settings (on 80 m with large L/C) the reflection is reflected again at the TRX, and Pf rises up to the ADC limit (~19–20 W depending on battery voltage), even though the TRX only delivers 5 W. The loop then hung for ~20 s, showed the peak power and aborted tuning via timeout (`SWR = 0`). This also happened with the original, but the coarse search up to 64 made it much more frequent. The upper limit now checks `PWR_net` = Pf − Pr, i.e. the power the transmitter actually delivers. That is what matters for protecting the relays. The lower limit (carrier present) and the display stay with Pf.
+- **Quick retune** (FW 1.8): if the relays hold the result of an earlier tune and the SWR is at most 5.0, a fine search from the current setting comes first. Its result is kept if it reaches SWR 1.2 or is at most 0.2 worse than the earlier tune; otherwise the full search follows and the better result wins. After a QSY of 1–5 % this needs 26 instead of 68 relay steps on average in the simulator, at slightly better SWR (`make simretune`). Parameters `QUICK_MAX_SWR` 500 and `QUICK_MARGIN` 20 in `tune.h`.
+- **Cancelling a tune with a short press** (FW 1.8): the original switched the relays to bypass from inside the measurement loop, but the search then went on and set them again, so the display showed BYP with tuned relays. Now the measurement and all search loops stop as soon as the button flag is set (`TUNE_ABORT`), and the main loop switches to bypass afterwards. Together with a leaner `pwr_wake()` this also frees 2 levels of the hardware stack.
+- **Dropped**: remembering the best measured setting and jumping back to it at the end. It made no difference in the simulator: in the worse cases the search never measures the good setting in the first place.
+
+### Simulator
+`make simcompare [TABLE=1] [NOISE=3] [SEEDS="1 2 3"]` compares the frozen original algorithm (`tools/sim/orig`) with the current version.
+`build/sim_new --case 28.5 30 80` logs a single case step by step.
+`make simretune [RETUNE="-5 -2 -1 1 2 5"]` tunes every case at the band frequency, moves the frequency by RETUNE percent (the load stays the same) and compares the retune with and without the quick retune.
+`build/sim_new --sweep 3.6 --rs 10` computes a grid over the whole impedance plane (R 2–5000 Ω, X ±3000 Ω, 500 loads). Column 6 counts how often `get_swr` had to wait for "good power" and displayed the power, column 7 the highest power displayed.
+`--rs` models the TRX as a source with internal resistance (5 W into 50 Ω). Pf then rises above 5 W on mismatch, as with a real rig. Without `--rs`, Pf stays at a constant 5 W and all other results are unchanged.
+
+Grid at 3.6 MHz, aborts due to "too much power" before / after the Pf−Pr change: Rs 10 Ω: 334 → 0 of 500, Rs 5 Ω: 428 → 0 (original N7DDC: 26 and 14). With Rs = 10 Ω the rate of SWR ≤ 1.5 rises from 5.4 % to 7.4 % (only 157 of the 500 loads in the grid are tunable at all, i.e. 31 %). For extreme loads with SWR > 50 the measurement saturates and the search is initially blind there, with and without source impedance.
+
+The model (`tools/sim/sim.c`) covers:
+- relay values 0.1–10 µH and 22–2200 pF, Q=100, 10 pF stray capacitance, C on either the transmitter or the load side
+- bridge according to the cal formula, ADC range switching as in `get_forward`
+- 5 W transmit power, optional Gaussian noise
+- test cases: 9 bands (1.85–28.5 MHz) × 14 loads (12.5 Ω–2 kΩ, plus complex ones)
+
+Result for the standard set (`make simcompare`, 126 cases):
+
+| | original | new |
+|---|---|---|
+| mean SWR (capped at 10) | 4.23 | 1.89 |
+| SWR ≤ 1.2 | 31.0 % | 45.2 % |
+| SWR ≤ 1.5 | 51.6 % | 64.3 % |
+| relay steps avg / max | 66 / 113 | 89 / 235 (~25 ms per step) |
+| better / worse | – | 72 / 4 |
+| with 3 mV noise, 10 seeds: better / worse | – | 739 / 38 |
+
+Typical antennas (`make simants`), impedances estimated, as seen behind the transformer:
+- Random wire with 9:1 unun: 4+j10 to 350−j50 Ω, 10 loads × 9 bands
+- EFHW (40 m) with 49:1: 25–150 Ω ±j20…100, 8 loads × 4 bands
+
+| | random wire old | random wire new | EFHW old | EFHW new |
+|---|---|---|---|---|
+| mean SWR | 1.58 | 1.41 | 1.23 | 1.17 |
+| SWR ≤ 1.2 | 26 % | 48 % | 66 % | 75 % |
+| SWR ≤ 1.5 | 58 % | 70 % | 84 % | 94 % |
+| with 3 mV noise: SWR ≤ 1.5 | 46 % | 71 % | 83 % | 94 % |
+| relay steps avg | 50 | 80 | 39 | 53 |
+| better / worse (without noise) | – | 33 / 10 | – | 7 / 1 |
+
+Some cases remain worse than with the original, mainly loads with a large reactive part, for example:
+- Random wire 24.9 MHz / 80+j150: 2.60 instead of 1.04
+- Random wire 14.2 MHz / 15−j40: 3.25 instead of 2.41
+
+The greedy search by design cannot find minima that lie off its path, and every change to the search order shifts which cases get lucky. A grid search would fix that, but costs considerably more relay steps.
+
+## Display robustness (freezing, strange characters)
+The original 1.6 also shows garbled characters now and then, or the display freezes. This happens mainly while transmitting/tuning and after the display wakes up. Causes in the code:
+
+1. **The display is only configured at power-on and wake-up.** RF and relay pulses can corrupt a bit on the software I2C (open drain, approx. 20 kHz). The SSD1306 then takes data as a command: addressing mode, scroll, start line, remap. The error persists until the display is re-initialized.
+2. **No bus recovery**: if the controller holds SDA low, all further transfers go nowhere.
+3. **Writing to the switched-off display** (`OLED_PWD = 0`), for example the battery indicator every 3 s. The controller can be half powered via SDA/SCL and then starts without a clean reset on wake-up.
+4. **Interrupt races**: `Tick`, `disp_cnt` and `off_cnt` are 32 bits wide and were not read atomically in `main`. The display or the whole device could switch off wrongly because of this.
+
+Fixes:
+- `Soft_I2C_Init()` clocks a hanging slave free with up to 9 SCL pulses.
+- `oled_config()` resends all settings every 3 s. Since no `0xAE` is sent, nothing flickers.
+- `oled_refresh()` does bus recovery, resends the settings and redraws all fields without clearing. This happens after every tune, every 30 s and immediately when the display does not answer with ACK (`oled_fault`).
+- All `oled_*` output does nothing while the display is off.
+- The interrupt reports counter expiry via the bits `Disp_expired`/`Off_expired`. `keep_awake()` and `tick()` access them with interrupts disabled.
+
+Software can only do so much against very strong RF coupling. If the error still occurs, a ferrite or decoupling on the display lines helps on the hardware side. Garbled characters are repaired after 30 s at the latest.
+
+**Display lock-up (FW 1.8.1).** With FW 1.8 the display could still lock up after a longer run time, while transmitting or idle: vertical stripes over the whole screen, no normal content. Resending the settings and redrawing did not help, only power off and on (very long press). So the controller itself hangs and only recovers without power. FW 1.8.1 does this automatically:
+- `oled_reset()` switches the display off (`OLED_PWD = 0`) for 300 ms and initializes it again like a wake-up (`oled_start()`, the display is cleared and redrawn), without the greeting. The display is dark for about 0.6 s. The display off and power off timers are kept.
+- Preventive: every 10 min, but only when no RF is present (shown power 0.0 W); with RF it waits until the carrier is gone.
+- On faults: if the display does not answer (NACK) in 3 checks in a row (every 300 ms), it is reset at once instead of only refreshed.
+- `oled_config()` starts with 6 NOP commands (`0xE3`). They fill up a command garbled by RF that still waits for its arguments, so the settings after it are not shifted.
+
+**Faster recovery (FW 1.8.2).** In FW 1.8.1 the stripes could stay up to 10 min. They come from strong RF on the tuner, while transmitting and tuning. FW 1.8.2 therefore:
+- resets the display 2 s after the end of each transmission and after each tune (`rf_seen` in `watch_swr()`, the reset itself stays in `main()` and waits for 0.0 W). With digital modes the display goes dark for about 0.6 s after each transmission.
+- reads the status byte of the display controller every 3 s (`oled_status()`, `oled_check()`). Bit 6 set means the display is switched off. If the display answered once with a valid status (not every module supports reading), a missing answer or bit 6 later triggers an immediate reset.
+- It is not known yet whether a display with stripes shows it in its status byte. The SSD1306 cannot read back its picture memory over I2C, so this is the only check possible.
+
+**Test build** `ATU-10_FW_182_xc8_debug.hex` (`make debug`): it never resets the display automatically (only the 10 min reset stays), so the stripes remain visible. In place of "PWR" it shows four hex digits: two for the current status byte and two for the last value that differed from the first one read (`--` = no answer). Procedure: note the value with a normal display; when stripes appear, power off and on (very long press, the value is kept) and note the right two digits. If they differ from the normal value, the stripes can be detected and the release build can reset on exactly that value.
+
+If the display still fails completely, restart the tuner (power off and on).
+
+## Watchdog and brown-out (FW 1.8)
+- **Watchdog** (~8 s): switched on after the start and cleared in the main loop and while tuning waits for the carrier. If the firmware hangs anyway, the tuner restarts instead of freezing. It is off during power off, so sleep is not disturbed.
+- **Brown-out reset** at 2.7 V, active only while running (no extra current in sleep). With an almost empty battery the PIC resets cleanly instead of running out of spec at 32 MHz and pulsing relays at random.
+- After such a restart the SWR line shows for 2 s why: `LOW BATT`, `WDT RESET` or `STACK RST`. Please mention it in error reports. A normal start with a freshly connected battery shows nothing.
+- The config words therefore differ from the mikroC project in CONFIG2 (brown-out) and CONFIG3 (watchdog), and `make` checks the new values.
+
+
