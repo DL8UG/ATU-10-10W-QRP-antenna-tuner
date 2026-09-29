@@ -1,7 +1,5 @@
 # ATU-10 firmware 1.8.2, built with Microchip XC8
 #   make        -> ATU-10_FW_182_xc8.hex (copy it onto the tuner's USB drive)
-#   make debug  -> ATU-10_FW_182_xc8_debug.hex: test build, shows the display
-#                  status byte in place of "PWR" and never resets the display
 #   make clean
 
 XC8    ?= $(firstword $(wildcard /opt/microchip/xc8/*/bin/xc8-cc) xc8-cc)
@@ -26,20 +24,10 @@ build/ATU-10.hex: $(SRC) $(wildcard *.h)
 $(TARGET).hex: build/ATU-10.hex tools/normalize_hex.py
 	python3 tools/normalize_hex.py $< $@ --config $(CONFIG)
 
-# test build in its own directory, so it never mixes with the release objects
-debug: $(TARGET)_debug.hex
-
-build/debug/ATU-10.hex: $(SRC) $(wildcard *.h)
-	mkdir -p build/debug
-	$(XC8) $(CFLAGS) -DOLED_DEBUG -Wa,-a -Wl,-Map=build/debug/ATU-10.map -o build/debug/ATU-10.elf $(SRC)
-
-$(TARGET)_debug.hex: build/debug/ATU-10.hex tools/normalize_hex.py
-	python3 tools/normalize_hex.py $< $@ --config $(CONFIG)
-
 clean:
-	rm -rf build $(TARGET).hex $(TARGET)_debug.hex
+	rm -rf build $(TARGET).hex
 
-.PHONY: all debug clean sim simcompare simants simretune
+.PHONY: all clean sim simcompare simants simretune
 
 # ---- PC simulator of the tuning algorithm (tools/sim), built with the host gcc
 HOSTCC   = gcc

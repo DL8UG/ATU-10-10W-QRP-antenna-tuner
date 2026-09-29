@@ -21,10 +21,6 @@ unsigned long volt_cnt = 0, watch_cnt = 0, btn_cnt = 0, refresh_cnt = 0, reset_c
 char fault_cnt = 0;   // display faults in a row
 __bit rf_seen;        // RF since the last display reset: reset when it ends
 __bit status_ok;      // the display answered a status read once (read works)
-#ifdef OLED_DEBUG
-#define STATUS_NONE 0x200   // no differing value seen yet
-unsigned int status_ref = OLED_NO_STATUS, status_odd = STATUS_NONE;
-#endif
 volatile unsigned long off_cnt = 10, disp_cnt=10;
 int PWR, SWR, SWR_ind = 0, SWR_fixed_old = 100, PWR_fixed_old = 9999, rldl;
 char ind = 0, cap = 0, SW = 0;
@@ -261,35 +257,15 @@ static void oled_reset(void){
    return;
 }
 //
-// A display locked up by RF may still acknowledge its address. Its status
-// byte shows whether it is still switched on. The check only starts after one
-// good read, since not every display module supports reading.
+// A display that stopped answering or switched itself off is reset at once.
+// The check only starts after one good read, since not every display module
+// supports reading. Stripes do not show in the status (it stays 0x03).
 static void oled_check(void){
    unsigned int s;
-#ifdef OLED_DEBUG
-   char txt[4];
-#endif
    if(!OLED_PWD) return;
    s = oled_status();
-#ifdef OLED_DEBUG
-   // test build: no reset, show the status in place of the "PWR" label:
-   // two hex digits current value, two hex digits last value that differed
-   // from the first one read ("--" = no answer, ".." = no differing value)
-   if(status_ref==OLED_NO_STATUS) status_ref = s;
-   else if(s!=status_ref) status_odd = s;
-   txt[0] = s>0xFF ? '-' : "0123456789ABCDEF"[s>>4];
-   txt[1] = s>0xFF ? '-' : "0123456789ABCDEF"[s&15];
-   if(status_odd==STATUS_NONE) txt[2] = txt[3] = '.';
-   else if(status_odd>0xFF) txt[2] = txt[3] = '-';
-   else {
-      txt[2] = "0123456789ABCDEF"[status_odd>>4];
-      txt[3] = "0123456789ABCDEF"[status_odd&15];
-   }
-   oled_wr_str(0, 0, txt, 4);
-#else
    if(s<=0xFF && !(s & 0x40)) status_ok = 1;   // answered and switched on
    else if(status_ok) oled_reset();            // no answer or switched off
-#endif
    return;
 }
 //
@@ -338,14 +314,12 @@ void watch_swr(void){
       else oled_start();
       rf_seen = 1;
    }
-#ifndef OLED_DEBUG
    // RF is what locks up the display: power cycle it 2 s after each
    // transmission (main does it once PWR_fixed_old is 0)
    else if(rf_seen){
       rf_seen = 0;
       reset_cnt = tick() + 2000;
    }
-#endif
    //
    if(PWR_fixed!=PWR_fixed_old){
       if(Overflow)

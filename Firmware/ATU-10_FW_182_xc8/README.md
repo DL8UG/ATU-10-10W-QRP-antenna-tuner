@@ -42,12 +42,11 @@ Commits (each can be reverted individually):
 15. `48189a7` relay setting and bypass state kept in the EEPROM
 16. `aeeffb8` quick retune from the current setting (`make simretune`)
 17. FW 1.8.1 started in the new folder `ATU-10_FW_181_xc8`: automatic display reset (power cycle) every 10 min without RF and after 3 display faults in a row, NOP prefix in `oled_config()` (see *Display robustness*)
-18. FW 1.8.2 started in the new folder `ATU-10_FW_182_xc8`: display reset 2 s after each transmission, display status check every 3 s, test build `make debug` (see *Display robustness*)
+18. FW 1.8.2 started in the new folder `ATU-10_FW_182_xc8`: display reset 2 s after each transmission, display status check every 3 s (see *Display robustness*)
 
 ## Building
 ```
 make          # -> ATU-10_FW_182_xc8.hex
-make debug    # -> ATU-10_FW_182_xc8_debug.hex (test build, display status on the screen)
 make clean
 ```
 - Compiler: XC8 v4.00 (AUR `microchip-mplabxc8-bin`, installed under `/opt/microchip/xc8/v4.00`)
@@ -208,9 +207,9 @@ Software can only do so much against very strong RF coupling. If the error still
 **Faster recovery (FW 1.8.2).** In FW 1.8.1 the stripes could stay up to 10 min. They come from strong RF on the tuner, while transmitting and tuning. FW 1.8.2 therefore:
 - resets the display 2 s after the end of each transmission and after each tune (`rf_seen` in `watch_swr()`, the reset itself stays in `main()` and waits for 0.0 W). With digital modes the display goes dark for about 0.6 s after each transmission.
 - reads the status byte of the display controller every 3 s (`oled_status()`, `oled_check()`). Bit 6 set means the display is switched off. If the display answered once with a valid status (not every module supports reading), a missing answer or bit 6 later triggers an immediate reset.
-- It is not known yet whether a display with stripes shows it in its status byte. The SSD1306 cannot read back its picture memory over I2C, so this is the only check possible.
+- A display with stripes does not show it in its status byte (measured, see below). The SSD1306 cannot read back its picture memory over I2C either.
 
-**Test build** `ATU-10_FW_182_xc8_debug.hex` (`make debug`): it never resets the display automatically (only the 10 min reset stays), so the stripes remain visible. In place of "PWR" it shows four hex digits: two for the current status byte and two for the last value that differed from the first one read (`--` = no answer, `..` = no differing value yet; DL8UG's display shows `03..` when normal). Procedure: note the value with a normal display; when stripes appear, power off and on (very long press, the value is kept) and note the right two digits. If they differ from the normal value, the stripes can be detected and the release build can reset on exactly that value.
+**Status measurement.** A test build that showed the status byte on the screen confirmed that reading works (`0x03` with a normal display), but a display with stripes still reported `0x03`. So the status check only catches a display that stops answering or switches off; the test build was removed again.
 
 **Vertical stripes without RF (FW 1.8.2).** Stripes also appeared on a tuner standing unconnected, so RF is not the only cause. FW 1.6 never showed them (only ghost images and artifacts), and it sent the display settings only at power-on and wake-up. Since FW 1.7 `oled_config()` resends everything every 3 s, including the analog settings clock (`0xD5`), charge pump (`0x8D`), pre-charge (`0xD9`) and VCOMH (`0xDB`), which the datasheet sets while the display is off. FW 1.8.2 sends these four only at initialization (`oled_config(1)`); the periodic resend keeps the picture settings (multiplex, offset, start line, contrast, addressing, scroll, remap, COM pins) against the ghost images. To be confirmed on the device with a tuner left idle for several hours.
 
