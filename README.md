@@ -32,7 +32,8 @@ Many thanks to David Fainitski, N7DDC, for the original hardware and firmware. P
 ###### New in FW version 1.8.2 (DL8UG, beta)
 1 - Display reset 2 s after each transmission and tune: strong RF is what locks up the display, so stripes now last only until the end of the transmission instead of up to 10 min.  
 2 - The display status is read every 3 s. If a display that answered before stops answering or reports itself switched off, it is reset at once.  
-3 - Test build `ATU-10_FW_182_xc8_debug.hex`: shows the display status byte in place of "PWR", see the folder README.
+3 - The analog display settings (clock, charge pump, pre-charge, VCOMH) are no longer resent to the running display, the suspected cause of the vertical stripes that appeared even without RF since FW 1.7.  
+4 - Test build `ATU-10_FW_182_xc8_debug.hex`: shows the display status byte in place of "PWR", see the folder README.
 
 ###### New in FW version 1.8.1 (DL8UG, stable)
 1 - Automatic display reset (short power cycle) every 10 min without RF and after repeated display faults, against display lock-ups (vertical stripes) after a longer run time.  

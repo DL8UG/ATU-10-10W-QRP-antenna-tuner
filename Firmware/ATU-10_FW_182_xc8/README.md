@@ -212,6 +212,8 @@ Software can only do so much against very strong RF coupling. If the error still
 
 **Test build** `ATU-10_FW_182_xc8_debug.hex` (`make debug`): it never resets the display automatically (only the 10 min reset stays), so the stripes remain visible. In place of "PWR" it shows four hex digits: two for the current status byte and two for the last value that differed from the first one read (`--` = no answer, `..` = no differing value yet; DL8UG's display shows `03..` when normal). Procedure: note the value with a normal display; when stripes appear, power off and on (very long press, the value is kept) and note the right two digits. If they differ from the normal value, the stripes can be detected and the release build can reset on exactly that value.
 
+**Vertical stripes without RF (FW 1.8.2).** Stripes also appeared on a tuner standing unconnected, so RF is not the only cause. FW 1.6 never showed them (only ghost images and artifacts), and it sent the display settings only at power-on and wake-up. Since FW 1.7 `oled_config()` resends everything every 3 s, including the analog settings clock (`0xD5`), charge pump (`0x8D`), pre-charge (`0xD9`) and VCOMH (`0xDB`), which the datasheet sets while the display is off. FW 1.8.2 sends these four only at initialization (`oled_config(1)`); the periodic resend keeps the picture settings (multiplex, offset, start line, contrast, addressing, scroll, remap, COM pins) against the ghost images. To be confirmed on the device with a tuner left idle for several hours.
+
 If the display still fails completely, restart the tuner (power off and on).
 
 ## Watchdog and brown-out (FW 1.8)

@@ -29,8 +29,12 @@ void oled_init (void) {  // OLED init
    return;
 }
 
-// Sends all settings again. RF can turn data bytes into commands, so this
-// is repeated regularly; with first = 0 the display stays on.
+// Sends the settings. RF can turn data bytes into commands, so the picture
+// settings are repeated regularly; with first = 0 the display stays on.
+// The analog settings (clock, charge pump, pre-charge, VCOMH) are only sent
+// with first = 1, while the display is off. Resending them to the running
+// display (FW 1.7 - 1.8.1) is the suspected cause of vertical stripes after
+// some hours, even without RF; FW 1.6 did not resend and had no stripes.
 void oled_config (char first) {
    char i;
    if(!OLED_PWD) return;
@@ -40,11 +44,22 @@ void oled_config (char first) {
    // NOPs first: they fill up a command garbled by RF that still waits for
    // its arguments (up to 6), so the settings below are not shifted
    for(i=0; i<6; i++) Soft_I2C_Write (0xE3);
-   if(first) Soft_I2C_Write (0xAE); // display OFF
-   //         initialisation
-   Soft_I2C_Write (0xD5); // clock division
-   Soft_I2C_Write (0x80); // ratio
-   //
+   if(first){
+      Soft_I2C_Write (0xAE); // display OFF
+      //
+      Soft_I2C_Write (0xD5); // clock division
+      Soft_I2C_Write (0x80); // ratio
+      //
+      Soft_I2C_Write (0x8D); //  charge pump
+      Soft_I2C_Write (0x14); //  0x10 - external, 0x14 - internal
+      //
+      Soft_I2C_Write (0xD9); //  pre-charge
+      Soft_I2C_Write (0xF1); //  0x22 - external, 0xF1 - internal
+      //
+      Soft_I2C_Write (0xDB); //  V-COM detect
+      Soft_I2C_Write (0x40); //
+   }
+   //         picture settings
    Soft_I2C_Write (0xA8); //  multiplexer
    Soft_I2C_Write (63); //
    //
@@ -53,14 +68,8 @@ void oled_config (char first) {
    //
    Soft_I2C_Write (0x40); // set line, line = 0
    //
-   Soft_I2C_Write (0x8D); //  charge pump
-   Soft_I2C_Write (0x14); //  0x10 - external, 0x14 - internal
-   //
    Soft_I2C_Write (0x81); //  contrast
    Soft_I2C_Write (255); //   0-255
-   //
-   Soft_I2C_Write (0xD9); //  pre-charge
-   Soft_I2C_Write (0xF1); //  0x22 - external, 0xF1 - internal
    //
    Soft_I2C_Write (0x20); //  memory addressing mode
    Soft_I2C_Write (0x02); //  page addressing mode   02
@@ -82,9 +91,6 @@ void oled_config (char first) {
    //
    Soft_I2C_Write (0xDA); //  COM pins configure
    Soft_I2C_Write (0x02); // 02 for 32 12 for x64
-   //
-   Soft_I2C_Write (0xDB); //  V-COM detect
-   Soft_I2C_Write (0x40); //
    //
    Soft_I2C_Write (0xA4); //  display entire ON
    //
