@@ -2,7 +2,7 @@
 
 Port of the mikroC PRO for PIC firmware from `../ATU-10_FW_16` to the free Microchip XC8 compiler.
 FW 1.7 = N7DDC's FW 1.6 plus this port and the improvements listed below; FW 1.8 adds quick retune, memory of the relay setting, watchdog/brown-out and a clean tune abort; FW 1.8.1 adds an automatic display reset against display lock-ups; FW 1.8.2 resets the display after each transmission and checks its status.
-The original sources are left unchanged. Status: 2026-09-29. **FW 1.8.2 is beta: not yet tested on the device. The previous stable version FW 1.8.1 is in `../ATU-10_FW_181_xc8`, FW 1.8 in `../ATU-10_FW_18_xc8`, FW 1.7 in `../ATU-10_FW_17_xc8`.**
+The original sources are left unchanged. Status: 2026-10-01. **FW 1.8.2 is stable: tested on the device by DL8UG and working (4 h continuous operation including idle, no display stripes). The previous version FW 1.8.1 is in `../ATU-10_FW_181_xc8`, FW 1.8 in `../ATU-10_FW_18_xc8`, FW 1.7 in `../ATU-10_FW_17_xc8`.**
 
 ## Acknowledgements
 Many thanks to David Fainitski, N7DDC, the original developer of the ATU-10, for his work on
@@ -20,7 +20,8 @@ Programming was assisted by Claude Code (Anthropic).
 Feedback from the community is very welcome, especially test reports from other tuners,
 antennas and bands, and readings that differ from FW 1.6 (power, SWR, tuning result, display).
 Please open an issue at https://github.com/DL8UG/ATU-10-10W-QRP-antenna-tuner/issues
-or post in the ATU100 group at https://groups.io/g/ATU100.
+or post in the project thread of the ATU100 group:
+https://groups.io/g/ATU100/topic/my_new_atu_10_firmware/121418227
 Useful details: band, rig and power, antenna and transformer, SWR before/after, and the Cells
 settings if they were changed.
 
@@ -68,7 +69,7 @@ The PIC16F1454 on the board acts as the programmer; its parser is closed source.
 The script also checks the config words against `ATU-10.cfg`, but only the bits the chip actually uses.
 `normalize_hex.py --check FILE` checks the format of a file. The original FW 1.5 hex passes this check.
 
-Fallback: flash `../ATU-10_FW_17_xc8/ATU-10_FW_17_xc8.hex` (FW 1.7, tested on the device) or `../ATU-10_FW_15/ATU-10_FW_15.hex` the same way. There is no FW 1.6 hex in the repo; the groups.io group ATU100 may have one.
+Fallback: flash `../ATU-10_FW_181_xc8/ATU-10_FW_181_xc8.hex` (FW 1.8.1, tested on the device) or `../ATU-10_FW_15/ATU-10_FW_15.hex` the same way. There is no FW 1.6 hex in the repo; the groups.io group ATU100 may have one.
 
 ## Operation
 - **Short press**: bypass on or off.
@@ -211,7 +212,7 @@ Software can only do so much against very strong RF coupling. If the error still
 
 **Status measurement.** A test build that showed the status byte on the screen confirmed that reading works (`0x03` with a normal display), but a display with stripes still reported `0x03`. So the status check only catches a display that stops answering or switches off; the test build was removed again.
 
-**Vertical stripes without RF (FW 1.8.2).** Stripes also appeared on a tuner standing unconnected, so RF is not the only cause. FW 1.6 never showed them (only ghost images and artifacts), and it sent the display settings only at power-on and wake-up. Since FW 1.7 `oled_config()` resends everything every 3 s, including the analog settings clock (`0xD5`), charge pump (`0x8D`), pre-charge (`0xD9`) and VCOMH (`0xDB`), which the datasheet sets while the display is off. FW 1.8.2 sends these four only at initialization (`oled_config(1)`); the periodic resend keeps the picture settings (multiplex, offset, start line, contrast, addressing, scroll, remap, COM pins) against the ghost images. To be confirmed on the device with a tuner left idle for several hours.
+**Vertical stripes without RF (FW 1.8.2).** Stripes also appeared on a tuner standing unconnected, so RF is not the only cause. FW 1.6 never showed them (only ghost images and artifacts), and it sent the display settings only at power-on and wake-up. Since FW 1.7 `oled_config()` resends everything every 3 s, including the analog settings clock (`0xD5`), charge pump (`0x8D`), pre-charge (`0xD9`) and VCOMH (`0xDB`), which the datasheet sets while the display is off. FW 1.8.2 sends these four only at initialization (`oled_config(1)`); the periodic resend keeps the picture settings (multiplex, offset, start line, contrast, addressing, scroll, remap, COM pins) against the ghost images. Confirmed on the device: 4 h of continuous operation including idle without stripes, the display is reset regularly.
 
 If the display still fails completely, restart the tuner (power off and on).
 
