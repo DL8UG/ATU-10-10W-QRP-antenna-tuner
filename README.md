@@ -1,3 +1,23 @@
+> [!CAUTION]
+> **This project is closed.**
+>
+> The firmware line FW 1.7 – 1.8.2 of this fork is no longer developed. The
+> ATU-10 firmware has been **rewritten from scratch** as **ATU-10 NG**: better
+> tuning, a memory of the last 12 tunes, all settings in a menu on the tuner,
+> a browser editor for the hex settings, and much more.
+>
+> **➜ New project: https://github.com/DL8UG/ATU-10_NG**
+> (download: [release v0.9.0](https://github.com/DL8UG/ATU-10_NG/releases/tag/v0.9.0))
+>
+> Please use ATU-10 NG and send feedback there. The versions below stay
+> available but get no more updates.
+
+<br>
+<br>
+<br>
+
+---
+
 # ATU-10  - The Tyny QRP Automatic Antenna Tuner
 
 ### Official conversation group - https://groups.io/g/ATU100
